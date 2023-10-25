@@ -45,7 +45,7 @@ for i in range(args.n_clients):
 运行fedclip:
 > python fed_at_clip.py --dataset officehome --root_dir /mnt/sda/zd/data/oh_10c_uniform/  --batch 100  --logdir t2.log
 
-![image-20231025122224571](https://zideapicbed.oss-cn-shanghai.aliyuncs.com/img/image-20231025122224571.png)大致流程：每个客户端训练自己的模型（**todo:拉取这部分还没有搞**），之后把自己的Adapter上传到服务器的专家模型中，其中置换掉最老的模型（这里可以上一些内存调度算法像什么LRU这些)
+大致流程：每个客户端训练自己的模型（**todo:拉取这部分还没有搞**），之后把自己的Adapter上传到服务器的专家模型中，其中置换掉最老的模型（这里可以上一些内存调度算法像什么LRU这些)
 
 之后模型获得置换模型的索引并将其作为one-hot向量，利用客户端的数据进行训练从而不需要发送标签，保护用户隐私（**todo:可以添加一些差分噪声或者使用一些较新的方法：[FedCR](https://proceedings.mlr.press/v202/zhang23w/zhang23w.pdf)**）
 
