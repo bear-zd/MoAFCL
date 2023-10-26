@@ -7,7 +7,7 @@ from tqdm import tqdm
 from .server import train_server
 import math
 
-label_parser = lambda x : int(x.split("client")[-1])
+label_parser = lambda x : int(x.split("task")[-1])
 
 
 
@@ -23,7 +23,9 @@ def communicate(clip_model: ClipModelMA, new_adapter, dataloader, device):
     else:
         least_client = math.inf
         replace_client_index = 0
+        print(model_client_labels)
         model_client_labels = [label_parser(i) for i in model_client_labels] # replace the most old model
+        
         for index, label in enumerate(model_client_labels):
             replace_client_index = index if label < least_client else replace_client_index
             least_client = min(least_client, label)

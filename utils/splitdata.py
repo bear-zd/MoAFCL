@@ -30,13 +30,20 @@ class strategy():
         raise NotImplementedError()
     
 class single_strategy(strategy):
-    def __init__(self, domains, num_client, num_task, num_sample_per) -> None:
+    def __init__(self, domains, num_client, num_task, num_sample_per, seq=False) -> None:
         super().__init__(domains, num_client, num_task, num_sample_per)
+        self.seq = seq
     def prob(self, index: int) -> List[float]:
-        cur_domain = self.domains[index%len(self.domains)]
-        domain_prob = {i:0 for i in self.domains}
-        domain_prob[cur_domain] = 1
+        if not self.seq:
+            domain_prob = {i:0 for i in self.domains}
+            rand_domain = random.randint(0, len(self.domains)-1)
+            domain_prob[self.domains[rand_domain]] = 1
+        else:
+            domain_prob = {i:0 for i in self.domains}
+            domain_prob[self.domains[(index+self.num_task)%len(self.domains)]] = 1
+        # print(domain_prob)
         return domain_prob
+
         
 class uniform_strategy(strategy):
     def __init__(self, domains, num_client, num_sample_per) -> None:
@@ -126,7 +133,7 @@ def time_seq_splitdata(indir:str,outdir:str, sample_strategy:strategy=None) :
 
 if __name__ == "__main__":
     INDIR = "/mnt/sda/zd/data/officehome"
-    OUTDIR = 'splitdata'
+    OUTDIR = '/mnt/sda/zd/data/splitdata'
     sample_strategy = single_strategy(os.listdir(INDIR), 10, 4,1000)
     fcl_splitdata(INDIR, OUTDIR, sample_strategy)
 

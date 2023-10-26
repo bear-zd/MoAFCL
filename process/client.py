@@ -7,7 +7,7 @@ import torch.nn as nn
 
 
 
-def test_client(clip_model: ClipModelMA, adapter ,data_loader: DataLoader, device):
+def test_client(clip_model: ClipModelMA, adapter: Adapter ,data_loader: DataLoader, device):
     clip_model.model.eval()
     adapter.eval()
     total = 0
@@ -50,9 +50,9 @@ def train_client(clip_model : ClipModelMA, image_adapter: Adapter, dataloader, o
         text = text.to(device)
 
         image_features = clip_model.model.encode_image(image).float()
-        text_features = clip_model.model.encode_text(text).float()
         image_features_att = image_adapter(image_features)
         image_features = torch.mul(image_features_att, image_features)
+        text_features = clip_model.model.encode_text(text).float()
 
         image_features = image_features / image_features.norm(dim=1, keepdim=True)
         text_features = text_features / text_features.norm(dim=1, keepdim=True)
@@ -65,7 +65,6 @@ def train_client(clip_model : ClipModelMA, image_adapter: Adapter, dataloader, o
 
         loss = (loss_img(logits_per_image, ground_truth) + 
                 loss_txt(logits_per_text, ground_truth))/2
-
 
         optimizer.zero_grad()
         loss.backward()

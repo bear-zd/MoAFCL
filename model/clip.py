@@ -85,7 +85,7 @@ class ClipModelMA(ClipModel):
     
     def init_MoE(self):
         freeze_param(self.model)
-        init_adapter = Adapter(self.model_name, self.device) 
+        init_adapter = Adapter(self.model_name)
         image_feature = ADAPTER_PARAMETER[self.model_name]["image_feature"]
         self.MoE: MoE = MoE(image_feature, init_adapter , num_experts = self.n_experts, k=self.top_k, noisy_gating=True)
 
