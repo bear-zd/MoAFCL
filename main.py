@@ -53,7 +53,7 @@ def main():
             logging.info(f"client {client} start to train!")
             
             image_adapter = Adapter(args.net, label=f"client{client}task{task}")   
-            
+            # fetch()
             optimizer = optim.Adam(params=image_adapter.parameters(), lr=args.lr, betas=(
                 args.beta1, args.beta2), eps=args.eps, weight_decay=args.weight_decay) 
             server_model.model.to(args.device)

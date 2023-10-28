@@ -9,7 +9,8 @@ import math
 
 label_parser = lambda x : int(x.split("task")[-1])
 
-
+def fetch():
+    pass
 
 def communicate(clip_model: ClipModelMA, new_adapter, dataloader, device):
     model_client_labels = [i.label for i in clip_model.MoE.experts] # get label from the expert model
