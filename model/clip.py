@@ -6,6 +6,7 @@ import clip
 from utils import freeze_param, get_image_features
 import copy
 from model.moe import MoE 
+from .weit import DecomposedLinear
 ADAPTER_PARAMETER = {"ViT-B/16":{"image_feature":512, "hidden_size":512, "output_feature":512},
              "RN50":{"image_feature":1024, "hidden_size":512, "output_feature":1024}}
 
@@ -88,4 +89,14 @@ class ClipModelMA(ClipModel):
         init_adapter = Adapter(self.model_name)
         image_feature = ADAPTER_PARAMETER[self.model_name]["image_feature"]
         self.MoE: MoE = MoE(image_feature, init_adapter , num_experts = self.n_experts, k=self.top_k, noisy_gating=True)
+
+
+class FedWeITClip(ClipModel):
+    def __init__(model_name, device):
+        super().__init__(model_name, device)
+    
+    def init_WeIT(self):
+        freeze_param(self.model)
+
+
 
