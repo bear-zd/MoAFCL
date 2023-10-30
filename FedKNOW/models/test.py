@@ -128,8 +128,8 @@ def test_img_local_all_WEIT(clip_model,appr, args, dataloader, t, w_locals=None,
         all_task_acc /= (t + 1)
         all_task_loss /= (t + 1)
    
-        acc_test_local[idx] = all_task_acc * tot
-        loss_test_local[idx] = all_task_loss * tot
+        acc_test_local[idx] = all_task_acc #* tot
+        loss_test_local[idx] = all_task_loss #* tot
         del net_local
 
     if return_all:

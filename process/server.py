@@ -10,6 +10,7 @@ def train_server(clip_model: ClipModelMA, data, index, device):
     clip_model.MoE = clip_model.MoE.to(device)
     optimizer = optim.SGD(clip_model.MoE.parameters(), lr=0.001, momentum=0.9)
     clip_model.MoE.train()
+    clip_model.MoE.experts.eval()
     logging.info(f"Server start to train MoE !")
     for epoch in tqdm(range(5)):
         for batch in data:
@@ -20,9 +21,9 @@ def train_server(clip_model: ClipModelMA, data, index, device):
             image_features = clip_model.model.encode_image(image).float()
             _ , loss_gate, logits = clip_model.MoE(image_features)
 
-            one_hot_label = torch.ones(logits.shape, device=device)*0.2
-            one_hot_label[0][index] = 1
-            
+            one_hot_label = torch.zeros_like(logits, device=device)
+            one_hot_label[:, index] = 1
+
             loss_label = binary_cross_entropy_with_logits(
                 logits, one_hot_label)
 

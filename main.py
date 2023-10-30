@@ -1,9 +1,6 @@
 import sys
 import os
-import copy
 from argument import argparser
-from typing import List
-import time
 
 base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(base_path)
@@ -16,7 +13,7 @@ import logging
 from utils.config import img_param_init, set_random_seed
 from utils.dataload import DomainDataset, get_data
 from model.clip import ClipModelMA, Adapter
-from process import train_client, communicate, test_server, test_client
+from process import train_client, communicate, test_server, test_client, fetch
 
 
 def init():
@@ -28,6 +25,7 @@ def init():
     args.random_state = np.random.RandomState(1)
     set_random_seed(args.seed)
     args = img_param_init(args)  # init the dataset parameters(domains and classnum)
+    args.thresh = 1e-4
     return args
 
 
@@ -50,10 +48,12 @@ def main():
         train_loaders, test_loaders, labels = dataloader.get_dataloader(task)
 
         for client in range(args.n_clients):
-            logging.info(f"client {client} start to train!")
+            logging.info(f"client {client} start to fetch!")
             
+            diff = fetch(server_model, test_loaders[client], args.device)
             image_adapter = Adapter(args.net, label=f"client{client}task{task}")   
-            # fetch()
+            logging.info(f"the {client} client among experts: {[i.label for i in server_model.MoE.experts]} var: {diff}")
+            # if (diff < args.thresh):
             optimizer = optim.Adam(params=image_adapter.parameters(), lr=args.lr, betas=(
                 args.beta1, args.beta2), eps=args.eps, weight_decay=args.weight_decay) 
             server_model.model.to(args.device)
@@ -66,7 +66,7 @@ def main():
             logging.info(f"client {client} - inner_iter: {epoch}, test_acc: {test_acc}, train_acc: {train_acc}")
                 # there should be a chose from user data, but not now
             logging.info(f"client {client} start to communication!")
-            communicate(server_model, image_adapter, train_loaders[client], args.device)
+            communicate(server_model, image_adapter, test_loaders[client], args.device)
             logging.info(f"server adapters:{[e.label for e in server_model.MoE.experts]}")
             logging.info(f"server start to eval!")
             test_acc_list, train_acc_list = [], []

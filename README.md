@@ -71,12 +71,17 @@ for i in range(args.n_clients):
 - 论文我们方法的优化工作（比较复杂，需要微调和多尝试）
 
   - （优先级不高）隐私保护相关，虽然应用起来会比较奇怪但是可以尝试FedCR或者相关的众多算法： FedAvg, FedPer, FedRep, FadBABU, Ditto, FedSR-FT, FedPAC 
+
   - （高优先级）personalize相关，如何比较服务器端的模型并拉取合适的模型
+
+  - （MoE gating 训练使用EWC
   
 
  - 联邦持续学习的相关baseline迁移
 
-   - （高优先级）FedKNOW或者FedWeIT都是基于任务转换的一种持续学习方案，可以同时兼容类偏移和域偏移的持续学习
+   - （高优先级）FedKNOW 迁移实现， FedWeIT检验
+
+
 
 - （优先级不高）将方法应用到类持续学习
 

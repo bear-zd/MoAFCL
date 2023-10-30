@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 
 
-
+@torch.no_grad()
 def test_client(clip_model: ClipModelMA, adapter: Adapter ,data_loader: DataLoader, device):
     clip_model.model.eval()
     adapter.eval()

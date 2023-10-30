@@ -139,6 +139,7 @@ class MoE(nn.Module):
         # instantiate experts
         self.experts = nn.ModuleList([copy.deepcopy(expert_model) for i in range(self.num_experts)])
         self.w_gate = nn.Parameter(torch.zeros(input_size, num_experts), requires_grad=True)
+        torch.nn.init.normal_(self.w_gate, mean=0, std=0.01) 
         self.w_noise = nn.Parameter(torch.zeros(input_size, num_experts), requires_grad=True)
 
         self.softplus = nn.Softplus()
@@ -228,6 +229,7 @@ class MoE(nn.Module):
             logits = clean_logits
 
         # calculate topk + 1 that will be needed for the noisy gates
+        # top_logits, top_indices = logits.topk(min(self.k + 1, self.num_experts), dim=1)
         top_logits, top_indices = logits.topk(min(self.k + 1, self.num_experts), dim=1)
         top_k_logits = top_logits[:, :self.k]
         top_k_indices = top_indices[:, :self.k]

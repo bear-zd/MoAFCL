@@ -4,9 +4,7 @@
 import torch.nn as nn
 import clip
 from utils import freeze_param, get_image_features
-import copy
 from model.moe import MoE 
-from .weit import DecomposedLinear
 ADAPTER_PARAMETER = {"ViT-B/16":{"image_feature":512, "hidden_size":512, "output_feature":512},
              "RN50":{"image_feature":1024, "hidden_size":512, "output_feature":1024}}
 
