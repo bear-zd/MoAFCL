@@ -40,10 +40,13 @@ for i in range(args.n_clients):
 划分数据集需要参考utils/splitdata.py
 
 运行我们的方法：（具体参数在argument.py，数据的分割和数据结构参照utils/splitdata.py）
-> python main.py --dataset officehome --root_dir /mnt/sda/zd/data/oh_10c_uniform/  --batch 100  --logdir t2.log
+> python main.py --dataset officehome --root_dir /mnt/sda/zd/data/splitdata/  --batch 100  --logdir t2.log
 
 运行fedclip:
-> python fed_at_clip.py --dataset officehome --root_dir /mnt/sda/zd/data/oh_10c_uniform/  --batch 100  --logdir t2.log
+> python fed_at_clip.py --dataset officehome --root_dir /mnt/sda/zd/data/splitdata/  --batch 100  --logdir t2.log
+
+运行FedWeIT:
+> python main_WEIT.py --alg=WEIT --dataset=officehome --net=ViT-B/16 --root_dir=/mnt/sda/zd/data/splitdata  --num_users=10 > --frac=0.1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=4   --local_ep=1  --gpu=1 --batch 100
 
 大致流程：每个客户端训练自己的模型（**todo:拉取这部分还没有搞**），之后把自己的Adapter上传到服务器的专家模型中，其中置换掉最老的模型（这里可以上一些内存调度算法像什么LRU这些)
 

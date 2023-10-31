@@ -25,7 +25,12 @@ def fetch(clip_model: ClipModelMA, dataloader, device):
         for i in logits:
             count_dict[torch.argmax(i).item()] += 1
     print(count_dict)
-    return total_var/total
+    for experts_index in count_dict:
+        if (count_dict[experts_index] > total*(3/4)):
+            return experts_index
+    else:
+        return None
+    
 
         
 

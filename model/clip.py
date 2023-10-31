@@ -86,7 +86,7 @@ class ClipModelMA(ClipModel):
         freeze_param(self.model)
         init_adapter = Adapter(self.model_name)
         image_feature = ADAPTER_PARAMETER[self.model_name]["image_feature"]
-        self.MoE: MoE = MoE(image_feature, init_adapter , num_experts = self.n_experts, k=self.top_k, noisy_gating=True)
+        self.MoE: MoE = MoE(image_feature, init_adapter , num_experts = self.n_experts, k=self.top_k, noisy_gating=True,device=self.device)
 
 
 class FedWeITClip(ClipModel):

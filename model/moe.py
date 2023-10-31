@@ -13,6 +13,8 @@ import torch.nn as nn
 from torch.distributions.normal import Normal
 import numpy as np
 import copy
+from copy import deepcopy
+import torch.nn.functional as F
 
 
 class SparseDispatcher(object):
@@ -130,23 +132,63 @@ class MoE(nn.Module):
     k: an integer - how many experts to use for each batch element
     """
 
-    def __init__(self, input_size,  expert_model ,num_experts, noisy_gating=True, k=4):
+    def __init__(self, input_size,  expert_model ,num_experts, noisy_gating=True, k=1, device=None):
         super(MoE, self).__init__()
         self.noisy_gating = noisy_gating
         self.num_experts = num_experts
         self.input_size = input_size
+        self.device = device
         self.k = k
         # instantiate experts
         self.experts = nn.ModuleList([copy.deepcopy(expert_model) for i in range(self.num_experts)])
-        self.w_gate = nn.Parameter(torch.zeros(input_size, num_experts), requires_grad=True)
-        torch.nn.init.normal_(self.w_gate, mean=0, std=0.01) 
-        self.w_noise = nn.Parameter(torch.zeros(input_size, num_experts), requires_grad=True)
-
+        self.gating = nn.ParameterDict({"w_gate":nn.Parameter(torch.zeros(input_size, num_experts), requires_grad=True), 
+                                     "w_noise":nn.Parameter(torch.zeros(input_size, num_experts), requires_grad=True)})
+        torch.nn.init.normal_(self.gating['w_gate'], mean=0, std=0.01) 
+        torch.nn.init.normal_(self.gating['w_noise'], mean=0, std=0.01) 
         self.softplus = nn.Softplus()
         self.softmax = nn.Softmax(1)
         self.register_buffer("mean", torch.tensor([0.0]))
         self.register_buffer("std", torch.tensor([1.0]))
         assert(self.k <= self.num_experts)
+        # apply the EWC to the MoE gating
+        self.params = {n: p for n, p in self.gating.named_parameters() if p.requires_grad}
+        self._means = {}
+        self._precision_matrices = None
+
+        for n, p in deepcopy(self.params).items():
+            self._means[n] = p.data.to(self.device)
+    
+    def _diag_fisher(self, encoder ,dataloader):
+        encoder.to(self.device)
+        encoder.eval()
+        precision_matrices = {}
+        for n, p in deepcopy(self.params).items():
+            p.data.zero_()
+            precision_matrices[n] = p.data.to(self.device)
+
+        self.gating.eval()
+        total_len = 0
+        for image, _, _ in dataloader:
+            self.gating.zero_grad()
+            image = image.to(self.device)
+            image_feature = encoder.encode_image(image).float()
+            output = self.noisy_top_k_gating(image_feature, True)[2].view(1, -1)
+            label = output.max(1)[1].view(-1)
+            loss = F.nll_loss(F.log_softmax(output, dim=1), label)
+            loss.backward()
+            total_len += len(image)
+
+            for n, p in self.gating.named_parameters():
+                precision_matrices[n].data += p.grad.data ** 2 / total_len
+
+        precision_matrices = {n: p for n, p in precision_matrices.items()}
+        return precision_matrices
+    def penalty(self):
+        loss = 0
+        for n,p in self.gating.named_parameters():
+            _loss = self._precision_matrices[n] * (p - self._means[n]) ** 2
+            loss += _loss.sum()
+        return loss
 
     def cv_squared(self, x):
         """The squared coefficient of variation of a sample.
@@ -219,9 +261,10 @@ class MoE(nn.Module):
             gates: a Tensor with shape [batch_size, num_experts]
             load: a Tensor with shape [num_experts]
         """
-        clean_logits = x @ self.w_gate
+        clean_logits = x @ self.gating["w_gate"]
+
         if self.noisy_gating and train:
-            raw_noise_stddev = x @ self.w_noise
+            raw_noise_stddev = x @ self.gating['w_noise'] 
             noise_stddev = ((self.softplus(raw_noise_stddev) + noise_epsilon))
             noisy_logits = clean_logits + (torch.randn_like(clean_logits) * noise_stddev)
             logits = noisy_logits

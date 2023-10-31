@@ -50,23 +50,25 @@ def main():
         for client in range(args.n_clients):
             logging.info(f"client {client} start to fetch!")
             
-            diff = fetch(server_model, test_loaders[client], args.device)
-            image_adapter = Adapter(args.net, label=f"client{client}task{task}")   
-            logging.info(f"the {client} client among experts: {[i.label for i in server_model.MoE.experts]} var: {diff}")
-            # if (diff < args.thresh):
-            optimizer = optim.Adam(params=image_adapter.parameters(), lr=args.lr, betas=(
-                args.beta1, args.beta2), eps=args.eps, weight_decay=args.weight_decay) 
-            server_model.model.to(args.device)
-            image_adapter.to(args.device)
-            for epoch in tqdm(range(args.inner_iter)):
-                train_client(server_model, image_adapter, train_loaders[client], optimizer ,args.device)
-            train_acc = test_client(server_model, image_adapter, train_loaders[client],  args.device)
-            test_acc = test_client(server_model, image_adapter, test_loaders[client],  args.device)
+            expert_index = fetch(server_model, test_loaders[client], args.device)
+            # to determine if there is a satisfied expert model!
+            if (expert_index is None):
+                logging.info(f"No satisfied experts model for client {client}")
+                image_adapter = Adapter(args.net, label=f"client{client}task{task}")   
+                       
+                optimizer = optim.Adam(params=image_adapter.parameters(), lr=args.lr, betas=(
+                    args.beta1, args.beta2), eps=args.eps, weight_decay=args.weight_decay) 
+                server_model.model.to(args.device)
+                image_adapter.to(args.device)
+                for epoch in tqdm(range(args.inner_iter)):
+                    train_client(server_model, image_adapter, train_loaders[client], optimizer ,args.device)
+                train_acc = test_client(server_model, image_adapter, train_loaders[client],  args.device)
+                test_acc = test_client(server_model, image_adapter, test_loaders[client],  args.device)
 
-            logging.info(f"client {client} - inner_iter: {epoch}, test_acc: {test_acc}, train_acc: {train_acc}")
+                logging.info(f"client {client} - inner_iter: {epoch}, test_acc: {test_acc}, train_acc: {train_acc}")
                 # there should be a chose from user data, but not now
-            logging.info(f"client {client} start to communication!")
-            communicate(server_model, image_adapter, test_loaders[client], args.device)
+                logging.info(f"client {client} start to communication!")
+                communicate(server_model, image_adapter, test_loaders[client], args.device)
             logging.info(f"server adapters:{[e.label for e in server_model.MoE.experts]}")
             logging.info(f"server start to eval!")
             test_acc_list, train_acc_list = [], []

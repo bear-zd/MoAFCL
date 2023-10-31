@@ -6,11 +6,12 @@ from tqdm import tqdm
 from torch.nn.functional import binary_cross_entropy_with_logits
 import torch
 
-def train_server(clip_model: ClipModelMA, data, index, device):
+def train_server(clip_model: ClipModelMA, data, index, device, importance=1000):
     clip_model.MoE = clip_model.MoE.to(device)
     optimizer = optim.SGD(clip_model.MoE.parameters(), lr=0.001, momentum=0.9)
     clip_model.MoE.train()
     clip_model.MoE.experts.eval()
+    clip_model.MoE._precision_matrices = clip_model.MoE._diag_fisher(clip_model.model ,data)
     logging.info(f"Server start to train MoE !")
     for epoch in tqdm(range(5)):
         for batch in data:
@@ -20,12 +21,13 @@ def train_server(clip_model: ClipModelMA, data, index, device):
 
             image_features = clip_model.model.encode_image(image).float()
             _ , loss_gate, logits = clip_model.MoE(image_features)
+            
 
             one_hot_label = torch.zeros_like(logits, device=device)
             one_hot_label[:, index] = 1
 
             loss_label = binary_cross_entropy_with_logits(
-                logits, one_hot_label)
+                logits, one_hot_label) + importance * clip_model.MoE.penalty()
 
             loss = loss_gate + loss_label
             optimizer.zero_grad()
@@ -36,7 +38,7 @@ def train_server(clip_model: ClipModelMA, data, index, device):
 
 
 
-
+@torch.no_grad()
 def test_server(clip_model: ClipModelMA, data_loader: DataLoader, device):
     clip_model.model.eval()
     clip_model.MoE.eval()

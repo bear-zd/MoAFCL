@@ -7,9 +7,9 @@ from torch.autograd import Variable
 from torch.utils.data import dataloader
 
 
-def variable(t: torch.Tensor, use_cuda=True, **kwargs):
-    if torch.cuda.is_available() and use_cuda:
-        t = t.cuda()
+def variable(t: torch.Tensor, device=None, **kwargs):
+    if device is not None:
+        t = t.to(device)
     return Variable(t, **kwargs)
 
 
