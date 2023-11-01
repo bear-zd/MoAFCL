@@ -1,6 +1,7 @@
 import sys
 import os
 from argument import argparser
+import itertools
 
 base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(base_path)
@@ -69,6 +70,12 @@ def main():
                 # there should be a chose from user data, but not now
                 logging.info(f"client {client} start to communication!")
                 communicate(server_model, image_adapter, test_loaders[client], args.device)
+            else:
+                image_adapter = server_model.MoE.experts[expert_index]
+                train_acc = test_client(server_model, image_adapter, train_loaders[client],  args.device)
+                test_acc = test_client(server_model, image_adapter, test_loaders[client],  args.device)
+
+                logging.info(f"client {client} - fetch successfully!, test_acc: {test_acc}, train_acc: {train_acc}")
             logging.info(f"server adapters:{[e.label for e in server_model.MoE.experts]}")
             logging.info(f"server start to eval!")
             test_acc_list, train_acc_list = [], []
@@ -76,7 +83,7 @@ def main():
                 test_acc_list.append(test_server(server_model, test_loaders[j], args.device))
                 train_acc_list.append(test_server(server_model, train_loaders[j], args.device))
             logging.info(f"the {client} turn eval result: test_acc {test_acc_list}\t train_acc {train_acc_list}")
-        
+                 
        
 if __name__ == "__main__":
-    main()
+    distr_research()

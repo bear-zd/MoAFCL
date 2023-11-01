@@ -6,7 +6,7 @@ from tqdm import tqdm
 from torch.nn.functional import binary_cross_entropy_with_logits
 import torch
 
-def train_server(clip_model: ClipModelMA, data, index, device, importance=1000):
+def train_server(clip_model: ClipModelMA, data, index, device, importance=2000):
     clip_model.MoE = clip_model.MoE.to(device)
     optimizer = optim.SGD(clip_model.MoE.parameters(), lr=0.001, momentum=0.9)
     clip_model.MoE.train()
@@ -23,7 +23,7 @@ def train_server(clip_model: ClipModelMA, data, index, device, importance=1000):
             _ , loss_gate, logits = clip_model.MoE(image_features)
             
 
-            one_hot_label = torch.zeros_like(logits, device=device)
+            one_hot_label = torch.ones_like(logits, device=device)
             one_hot_label[:, index] = 1
 
             loss_label = binary_cross_entropy_with_logits(

@@ -80,7 +80,7 @@ class DomainDataset:
         train_datasets, test_datasets = [], []
         train_dataloaders, test_dataloaders = [], []
         
-        for _, client_name in enumerate(os.listdir(self.root_dir)):
+        for _, client_name in enumerate(sorted(os.listdir(self.root_dir))):
             data = ImageTextData(self.root_dir, client_name, task_id, self.preprocess)
             l = len(data)
             index = np.arange(l)
