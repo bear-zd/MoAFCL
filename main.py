@@ -2,6 +2,7 @@ import sys
 import os
 from argument import argparser
 import itertools
+import copy
 
 base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(base_path)
@@ -13,8 +14,8 @@ import logging
 
 from utils.config import img_param_init, set_random_seed
 from utils.dataload import DomainDataset, get_data
-from model.clip import ClipModelMA, Adapter
-from process import train_client, communicate, test_server, test_client, fetch
+from model.clip import ClipModelMA, Adapter, Client
+from process import train_client, communicate, test_server, test_client, fetch, cluster
 
 
 def init():
@@ -34,6 +35,7 @@ def main():
     args = init()
     logging.info("Argument init successful!")
     server_model: ClipModelMA = ClipModelMA(args.net, n_experts=args.n_experts, device=args.device)  # load the server data
+    clients_data  =[copy.deepcopy(Client(args.net,args.device)) for i in range(args.n_clients)] # load the client data
     dataloader: DomainDataset = get_data(args.dataset)(args, server_model.preprocess)
     train_loaders, test_loaders, labels = dataloader.get_dataloader(0)
     assert len(train_loaders) == args.n_clients, "This just mention you to make sure the n_clients \
@@ -47,43 +49,46 @@ def main():
     for task in range(args.n_task):
         logging.info(f"task{task} start train!")
         train_loaders, test_loaders, labels = dataloader.get_dataloader(task)
-
-        for client in range(args.n_clients):
-            logging.info(f"client {client} start to fetch!")
+        if (task == 0): # start up
+            logging.info("first round start cluster!")
+            for client in range(args.n_clients):
+                clients_data[client].feature_data = []
+                temp_hook = server_model.model.visual.transformer.resblocks[0].register_forward_hook(clients_data[client].extract_feature())
+                for i in range(args.inner_iters):
+                    train_client(server_model, clients_data[client].adapter, train_loaders[client], args.device, args)
+                    if i ==0 :
+                        temp_hook.remove()
+            cluster(clients_data, server_model.n_experts)
             
-            expert_index = fetch(server_model, test_loaders[client], args.device)
-            # to determine if there is a satisfied expert model!
-            if (expert_index is None):
-                logging.info(f"No satisfied experts model for client {client}")
-                image_adapter = Adapter(args.net, label=f"client{client}task{task}")   
-                       
-                optimizer = optim.Adam(params=image_adapter.parameters(), lr=args.lr, betas=(
-                    args.beta1, args.beta2), eps=args.eps, weight_decay=args.weight_decay) 
-                server_model.model.to(args.device)
-                image_adapter.to(args.device)
-                for epoch in tqdm(range(args.inner_iter)):
-                    train_client(server_model, image_adapter, train_loaders[client], optimizer ,args.device)
-                train_acc = test_client(server_model, image_adapter, train_loaders[client],  args.device)
-                test_acc = test_client(server_model, image_adapter, test_loaders[client],  args.device)
+        else:
+            logging.info(f"{task} round start fetch!")
+            for client in range(args.n_clients):
+                clients_data[client].feature_data = []
+                temp_hook = server_model.model.visual.transformer.resblocks[0].register_forward_hook(clients_data[client].extract_feature())
+                clients_data[client].assign = fetch(server_model, train_loaders[client], clients_data[client],args.device)
+                temp_hook.remove()
+        
+                # clients_data[client].feature_data = []
+                clients_data[client].adapter = copy.deepcopy((server_model.MoE.experts[clients_data[client].assign]))
+                # temp_hook = server_model.model.visual.transformer.resblocks[0].register_forward_hook(clients_data[client].extract_feature())
+                train_client(server_model, clients_data[client].adapter, train_loaders[client], args.device, args)
+                # temp_hook.remove()
 
-                logging.info(f"client {client} - inner_iter: {epoch}, test_acc: {test_acc}, train_acc: {train_acc}")
-                # there should be a chose from user data, but not now
-                logging.info(f"client {client} start to communication!")
-                communicate(server_model, image_adapter, test_loaders[client], args.device)
-            else:
-                image_adapter = server_model.MoE.experts[expert_index]
-                train_acc = test_client(server_model, image_adapter, train_loaders[client],  args.device)
-                test_acc = test_client(server_model, image_adapter, test_loaders[client],  args.device)
-
-                logging.info(f"client {client} - fetch successfully!, test_acc: {test_acc}, train_acc: {train_acc}")
-            logging.info(f"server adapters:{[e.label for e in server_model.MoE.experts]}")
-            logging.info(f"server start to eval!")
-            test_acc_list, train_acc_list = [], []
-            for j in range(client+1):
-                test_acc_list.append(test_server(server_model, test_loaders[j], args.device))
-                train_acc_list.append(test_server(server_model, train_loaders[j], args.device))
-            logging.info(f"the {client} turn eval result: test_acc {test_acc_list}\t train_acc {train_acc_list}")
-                 
+        communicate(server_model, clients_data, args.device)
+        for client in range(args.n_clients):
+            clients_data[client].feature_data = []
+        
+        # start test
+        test_acc_list, train_acc_list = [], []
+        for client in range(args.n_clients):
+            train_acc = test_client(server_model, clients_data[client].adapter, train_loaders[client],  args.device)
+            test_acc = test_client(server_model, clients_data[client].adapter, test_loaders[client],  args.device)
+            train_acc_list.append(train_acc)
+            test_acc_list.append(test_acc)
+            logging.info(f"client {client} - fetch successfully!, test_acc: {test_acc}, train_acc: {train_acc}")
+        print(train_acc_list, test_acc_list)
+            
+            
        
 if __name__ == "__main__":
-    distr_research()
+    main()

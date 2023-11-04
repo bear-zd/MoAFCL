@@ -1,33 +1,43 @@
 import utils.cliputils as clu
 from utils.dataload import *
-from model.clip import ClipModelMA
+from model.clip import ClipModelMA, Client
 import torch.optim as optim
 from tqdm import tqdm
 from torch.nn.functional import binary_cross_entropy_with_logits
 import torch
+from typing import List
+import itertools
+from torch.utils.data import TensorDataset, DataLoader
 
-def train_server(clip_model: ClipModelMA, data, index, device, importance=2000):
+def train_server(clip_model: ClipModelMA, clients: List[Client], device):
     clip_model.MoE = clip_model.MoE.to(device)
-    optimizer = optim.SGD(clip_model.MoE.parameters(), lr=0.001, momentum=0.9)
+    optimizer = optim.SGD(clip_model.MoE.gating.parameters(), lr=0.001, momentum=0.9)
     clip_model.MoE.train()
     clip_model.MoE.experts.eval()
-    clip_model.MoE._precision_matrices = clip_model.MoE._diag_fisher(clip_model.model ,data)
+
+    temp_data = torch.tensor(np.stack([i.feature_data for i in clients]).reshape(-1, 768), dtype=torch.float)
+    # print(temp_data.shape, clients[0].feature_data.shape)
+    temp_label_data = torch.tensor(list(itertools.chain.from_iterable([[i.assign]*len(i.feature_data) for i in clients])), dtype=torch.long)
+    # print(temp_label_data)
+    # print(temp_data.shape)
+
+    dataset = TensorDataset(temp_data, temp_label_data)
+    dataloader = DataLoader(dataset=dataset, batch_size=100, shuffle=True)
+
     logging.info(f"Server start to train MoE !")
     for epoch in tqdm(range(5)):
-        for batch in data:
-            image, _, _ = batch
+        for batch in dataloader:
+            data, label = batch
 
-            image = image.to(device)
-
-            image_features = clip_model.model.encode_image(image).float()
-            _ , loss_gate, logits = clip_model.MoE(image_features)
+            data = data.to(device)
+            _ , loss_gate, logits = clip_model.MoE(data, train_gate=True)
             
 
-            one_hot_label = torch.ones_like(logits, device=device)
-            one_hot_label[:, index] = 1
+            one_hot_label = torch.ones_like(logits, device=device)*0.2
+            one_hot_label[:, label] = 1
 
             loss_label = binary_cross_entropy_with_logits(
-                logits, one_hot_label) + importance * clip_model.MoE.penalty()
+                logits, one_hot_label) 
 
             loss = loss_gate + loss_label
             optimizer.zero_grad()

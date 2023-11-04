@@ -4,6 +4,7 @@ import utils.cliputils as clu
 from model.clip import ClipModelMA, Adapter
 from torch.utils.data import DataLoader
 import torch.nn as nn
+import torch.optim as optim
 
 
 @torch.no_grad()
@@ -37,14 +38,18 @@ def test_client(clip_model: ClipModelMA, adapter: Adapter ,data_loader: DataLoad
 
 
 
-def train_client(clip_model : ClipModelMA, image_adapter: Adapter, dataloader, optimizer, device):
+def train_client(clip_model : ClipModelMA, image_adapter: Adapter, dataloader, device, args):
+    optimizer = optim.Adam(params=image_adapter.parameters(), lr=args.lr, betas=(
+                    args.beta1, args.beta2), eps=args.eps, weight_decay=args.weight_decay) 
+    clip_model.model.to(device)
     clip_model.model.train()
+    image_adapter.to(device)
     image_adapter.train()
     loss_img = nn.CrossEntropyLoss()
     loss_txt = nn.CrossEntropyLoss()
 
     for batch in dataloader:
-        image, text, label = batch
+        image, text, _ = batch
 
         image = image.to(device)
         text = text.to(device)
@@ -69,6 +74,4 @@ def train_client(clip_model : ClipModelMA, image_adapter: Adapter, dataloader, o
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
-    return image_adapter
 

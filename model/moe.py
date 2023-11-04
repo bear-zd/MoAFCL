@@ -132,7 +132,7 @@ class MoE(nn.Module):
     k: an integer - how many experts to use for each batch element
     """
 
-    def __init__(self, input_size,  expert_model ,num_experts, noisy_gating=True, k=1, device=None):
+    def __init__(self, extract_feature_size ,input_size,  expert_model ,num_experts, noisy_gating=True, k=1, device=None):
         super(MoE, self).__init__()
         self.noisy_gating = noisy_gating
         self.num_experts = num_experts
@@ -141,8 +141,8 @@ class MoE(nn.Module):
         self.k = k
         # instantiate experts
         self.experts = nn.ModuleList([copy.deepcopy(expert_model) for i in range(self.num_experts)])
-        self.gating = nn.ParameterDict({"w_gate":nn.Parameter(torch.zeros(input_size, num_experts), requires_grad=True), 
-                                     "w_noise":nn.Parameter(torch.zeros(input_size, num_experts), requires_grad=True)})
+        self.gating = nn.ParameterDict({"w_gate":nn.Parameter(torch.zeros(extract_feature_size, num_experts), requires_grad=True), 
+                                     "w_noise":nn.Parameter(torch.zeros(extract_feature_size, num_experts), requires_grad=True)})
         torch.nn.init.normal_(self.gating['w_gate'], mean=0, std=0.01) 
         torch.nn.init.normal_(self.gating['w_noise'], mean=0, std=0.01) 
         self.softplus = nn.Softplus()
@@ -150,45 +150,9 @@ class MoE(nn.Module):
         self.register_buffer("mean", torch.tensor([0.0]))
         self.register_buffer("std", torch.tensor([1.0]))
         assert(self.k <= self.num_experts)
-        # apply the EWC to the MoE gating
-        self.params = {n: p for n, p in self.gating.named_parameters() if p.requires_grad}
-        self._means = {}
-        self._precision_matrices = None
 
-        for n, p in deepcopy(self.params).items():
-            self._means[n] = p.data.to(self.device)
     
-    def _diag_fisher(self, encoder ,dataloader):
-        encoder.to(self.device)
-        encoder.eval()
-        precision_matrices = {}
-        for n, p in deepcopy(self.params).items():
-            p.data.zero_()
-            precision_matrices[n] = p.data.to(self.device)
-
-        self.gating.eval()
-        total_len = 0
-        for image, _, _ in dataloader:
-            self.gating.zero_grad()
-            image = image.to(self.device)
-            image_feature = encoder.encode_image(image).float()
-            output = self.noisy_top_k_gating(image_feature, True)[2].view(1, -1)
-            label = output.max(1)[1].view(-1)
-            loss = F.nll_loss(F.log_softmax(output, dim=1), label)
-            loss.backward()
-            total_len += len(image)
-
-            for n, p in self.gating.named_parameters():
-                precision_matrices[n].data += p.grad.data ** 2 / total_len
-
-        precision_matrices = {n: p for n, p in precision_matrices.items()}
-        return precision_matrices
-    def penalty(self):
-        loss = 0
-        for n,p in self.gating.named_parameters():
-            _loss = self._precision_matrices[n] * (p - self._means[n]) ** 2
-            loss += _loss.sum()
-        return loss
+    
 
     def cv_squared(self, x):
         """The squared coefficient of variation of a sample.
@@ -289,7 +253,7 @@ class MoE(nn.Module):
 
         return gates, load, logits
 
-    def forward(self, x, loss_coef=1e-2):
+    def forward(self, x, loss_coef=1e-2, train_gate=False):
         """Args:
         x: tensor shape [batch_size, input_size]
         train: a boolean scalar.
@@ -308,10 +272,12 @@ class MoE(nn.Module):
         #
         loss = self.cv_squared(importance) + self.cv_squared(load)
         loss *= loss_coef
-
-        dispatcher = SparseDispatcher(self.num_experts, gates)
-        expert_inputs = dispatcher.dispatch(x)
-        gates = dispatcher.expert_to_gates()
-        expert_outputs = [self.experts[i](expert_inputs[i]) for i in range(self.num_experts)]
-        y = dispatcher.combine(expert_outputs)
-        return y, loss, logits
+        if train_gate:
+            return None, loss, logits
+        else:
+          dispatcher = SparseDispatcher(self.num_experts, gates)
+          expert_inputs = dispatcher.dispatch(x)
+          gates = dispatcher.expert_to_gates()
+          expert_outputs = [self.experts[i](expert_inputs[i]) for i in range(self.num_experts)]
+          y = dispatcher.combine(expert_outputs)
+          return y, loss, logits

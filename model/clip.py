@@ -5,10 +5,30 @@ import torch.nn as nn
 import clip
 from utils import freeze_param, get_image_features
 from model.moe import MoE 
-ADAPTER_PARAMETER = {"ViT-B/16":{"image_feature":512, "hidden_size":512, "output_feature":512},
+import itertools
+import numpy as np
+ADAPTER_PARAMETER = {"ViT-B/16":{"image_feature":512, "hidden_size":512, "output_feature":512, "extract_feature":768},
              "RN50":{"image_feature":1024, "hidden_size":512, "output_feature":1024}}
 
-# **PARA_DICT[args.dataset]
+class Client():
+    def __init__(self, net, device):
+        self.feature_data = []
+        self.adapter: Adapter = Adapter(net) 
+        self.assign = None
+    def extract_feature(self):
+        def hook(module, input, output):
+            self.feature_data.append(output.permute(1,0,2).detach().cpu().numpy())
+        return hook
+    def preprocess(self):
+        self.feature_data = list(itertools.chain.from_iterable(self.feature_data))
+        self.feature_data = np.stack(self.feature_data, axis = 0)
+        self.feature_data = np.mean(self.feature_data, axis=1)
+        return self.feature_data
+    
+
+    
+    
+
 class Adapter(nn.Module):
     def __init__(self, base_model: str, label="origin", **kwargs):
         super(Adapter, self).__init__()
@@ -80,13 +100,16 @@ class ClipModelMA(ClipModel):
         self.client_label = None
         self.labels = None
         self.top_k = top_k
+        self.client_feature = {}
+        self.client_adapter = []
     
     
     def init_MoE(self):
         freeze_param(self.model)
         init_adapter = Adapter(self.model_name)
         image_feature = ADAPTER_PARAMETER[self.model_name]["image_feature"]
-        self.MoE: MoE = MoE(image_feature, init_adapter , num_experts = self.n_experts, k=self.top_k, noisy_gating=True,device=self.device)
+        extract_feature = ADAPTER_PARAMETER[self.model_name]["extract_feature"]
+        self.MoE: MoE = MoE(extract_feature ,image_feature, init_adapter , num_experts = self.n_experts, k=self.top_k, noisy_gating=True,device=self.device)
 
 
 class FedWeITClip(ClipModel):
