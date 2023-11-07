@@ -10,7 +10,8 @@ import torch.optim as optim
 @torch.no_grad()
 def test_client(clip_model: ClipModelMA, adapter: Adapter ,data_loader: DataLoader, device):
     clip_model.model.eval()
-    adapter.eval()
+    if adapter is not None:
+        adapter.eval()
     total = 0
     correct = 0
     texts = clip_model.labels
@@ -22,9 +23,10 @@ def test_client(clip_model: ClipModelMA, adapter: Adapter ,data_loader: DataLoad
             image, text, label = batch
             image, text, label = image.to(device), text.to(device), label.to(device)
             image_features = clip_model.model.encode_image(image).float()
-            image_features_att = adapter(image_features)
-            image_features = torch.mul(
-                image_features_att, image_features).detach()
+            if adapter is not None:
+                image_features_att = adapter(image_features)
+                image_features = torch.mul(
+                    image_features_att, image_features)
             similarity = clu.get_similarity(image_features, text_features)
 
             _, indices = similarity.topk(1)
@@ -39,10 +41,11 @@ def test_client(clip_model: ClipModelMA, adapter: Adapter ,data_loader: DataLoad
 
 
 def train_client(clip_model : ClipModelMA, image_adapter: Adapter, dataloader, device, args):
-    optimizer = optim.Adam(params=image_adapter.parameters(), lr=args.lr, betas=(
+    optimizer = optim.Adam(params=[{"params":image_adapter.parameters()}], lr=args.lr, betas=(
                     args.beta1, args.beta2), eps=args.eps, weight_decay=args.weight_decay) 
     clip_model.model.to(device)
     image_adapter.to(device)
+    clip_model.model.train()
     image_adapter.train()
     loss_img = nn.CrossEntropyLoss()
     loss_txt = nn.CrossEntropyLoss()
@@ -63,12 +66,12 @@ def train_client(clip_model : ClipModelMA, image_adapter: Adapter, dataloader, d
 
         logit_scale = clip_model.model.logit_scale.exp()
         logits_per_image = logit_scale * image_features @ text_features.t()
-        logits_per_text = logits_per_image.t()
+        # logits_per_text = logits_per_image.t()
 
         ground_truth = torch.arange(len(image), dtype=torch.long, device=device)
 
-        loss = (loss_img(logits_per_image, ground_truth) + 
-                loss_txt(logits_per_text, ground_truth))/2
+        loss = (loss_img(logits_per_image, ground_truth))
+                # + loss_txt(logits_per_text, ground_truth))/2
 
         optimizer.zero_grad()
         loss.backward()

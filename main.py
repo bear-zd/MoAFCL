@@ -52,13 +52,20 @@ def main():
         train_loaders, test_loaders, labels = dataloader.get_dataloader(task)
         if (task == 0): # start up
             logging.info("first round start cluster!")
+            
             for client in tqdm(range(args.n_clients)):
+                before_acc = test_client(server_model,  None, train_loaders[client], args.device)
+                print(f"before train {before_acc}")
                 clients_data[client].feature_data = []
                 temp_hook = server_model.model.visual.transformer.resblocks[0].register_forward_hook(clients_data[client].extract_feature())
+                acc_list = []
                 for i in range(args.inner_iter):
                     train_client(server_model, clients_data[client].adapter, train_loaders[client], args.device, args)
                     if i ==0 :
                         temp_hook.remove()
+                    acc_list.append(test_client(server_model,  clients_data[client].adapter, train_loaders[client], args.device))
+                no_adapter_acc = test_client(server_model,  None, train_loaders[client], args.device)
+                logging.info(f'task {task} - client {client} - acc_list{acc_list} - no_adp_acc {no_adapter_acc}')
             cluster(clients_data, server_model.n_experts)
             
         else:

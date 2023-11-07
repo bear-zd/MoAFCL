@@ -11,7 +11,7 @@ def argparser():
     parser.add_argument('--device', type=str, default="cuda:1", help='set device info')
     parser.add_argument('--n_clients', type=int, default=10, help="number of clients")
     parser.add_argument('--n_experts', type=int, default=5, help="number of expert model")
-    parser.add_argument('--inner_iter', type=int, default=10, help="number clients inner train iter times")
+    parser.add_argument('--inner_iter', type=int, default=5, help="number clients inner train iter times")
     parser.add_argument('--n_task', type=int, default=4, help="number of tasks")
 
     # data setting parameter

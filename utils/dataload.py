@@ -37,8 +37,7 @@ class ImageTextData(object):
                 transform=self._TRANSFORM,
             )
         
-        self.labels = data.classes
-        self.labels = sorted(self.labels)
+        self.labels = sorted(data.classes)
         self.data = data
         
 

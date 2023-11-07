@@ -8,7 +8,7 @@ from model.moe import MoE
 import itertools
 import numpy as np
 ADAPTER_PARAMETER = {"ViT-B/16":{"image_feature":512, "hidden_size":512, "output_feature":512, "extract_feature":768},
-             "RN50":{"image_feature":1024, "hidden_size":512, "output_feature":1024}}
+             "RN50":{"image_feature":1024, "hidden_size":512, "output_feature":1024,"extract_feature":512}}
 
 class Client():
     def __init__(self, net, device):
@@ -102,10 +102,10 @@ class ClipModelMA(ClipModel):
         self.top_k = top_k
         self.client_feature = {}
         self.client_adapter = []
+        freeze_param(self.model)
     
     
     def init_MoE(self):
-        freeze_param(self.model)
         init_adapter = Adapter(self.model_name)
         image_feature = ADAPTER_PARAMETER[self.model_name]["image_feature"]
         extract_feature = ADAPTER_PARAMETER[self.model_name]["extract_feature"]
