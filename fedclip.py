@@ -37,7 +37,7 @@ def train(args, model, data_loader, optimizer, device):
     for batch in data_loader:
 
         image, text, label = batch
-
+        # print(label)
         if len(text) > 1:
             image = image.to(device)
             text = text.to(device)
@@ -90,6 +90,7 @@ def test(args, model, data_loader, device):
             total += len(label)
             pred = torch.squeeze(indices)
             res = torch.cat([pred.view(-1, 1), label.view(-1, 1)], dim=1)
+            # print(res)
             res = res.cpu().numpy()
             correct += np.sum(np.array(res)[:, 0] == np.array(res)[:, 1])
 
@@ -127,16 +128,17 @@ if __name__ == '__main__':
                         default=6e-1, help='data percent to use')
     parser.add_argument('--batch', type=int, default=32, help='batch size')
     parser.add_argument('--root_dir', type=str, default='../../../data/')
-    parser.add_argument('--iters', type=int, default=300,
+    parser.add_argument('--iters', type=int, default=50,
                         help='iterations for communication')
-    parser.add_argument('--wk_iters', type=int, default=1,
+    parser.add_argument('--wk_iters', type=int, default=5,
                         help='optimization iters in local worker between communication')
     parser.add_argument('--mode', type=str, default='FedAtImg')
-    parser.add_argument('--net', type=str, default='ViT-B/32',
+    parser.add_argument('--net', type=str, default='ViT-B/16',
                         help='[RN50 | RN101 | RN50x4 | RN50x16 | RN50x64 | ViT-B/32 | ViT-B/16 | ViT-L/14 | ViT-L/14@336px]')
+    parser.add_argument('--n_task', type=int, default=4, help='task number')
     parser.add_argument('--seed', type=int, default=0, help='random seed')
     parser.add_argument('--n_clients', type=int, default=10)
-    parser.add_argument('--test_envs', type=int, nargs='+', default=[0])
+    parser.add_argument('--test_envs', type=int, nargs='+', default=[])
     parser.add_argument('--beta1', type=float, default=0.9)
     parser.add_argument('--beta2', type=float, default=0.98)
     parser.add_argument('--eps', type=float, default=1e-6)
@@ -151,8 +153,9 @@ if __name__ == '__main__':
 
     server_model = FedClip(args.net, imgadpy=True, freezepy=True)
 
-    train_loaders, test_loaders, labels = get_data(args.dataset)(args, server_model.preprocess).get_dataloader()
-    server_model.labels = labels[0]
+    train_loaders, test_loaders, labels = get_data(args.dataset)(args, server_model.preprocess).get_dataloader(0)
+    server_model.labels = labels
+    
 
     server_model.initdgatal(test_loaders[0])
 
@@ -161,7 +164,7 @@ if __name__ == '__main__':
     client_weights = [1/sclient_num for i in range(client_num)]
     models = [copy.deepcopy(server_model)for idx in range(client_num)]
     for i in range(client_num):
-        models[i].labels = labels[i]
+        models[i].labels = labels
         models[i].model.to(device)
         models[i].img_adap.to(device)
     best_changed = False
@@ -170,11 +173,12 @@ if __name__ == '__main__':
     finalrecord = ''
     logrecord = ''
 
-    for a_iter in range(args.iters):
+    for a_iter in range(args.n_task):
         optimizers = [optim.Adam(params=[{'params': models[idx].img_adap.parameters()}], lr=args.lr, betas=(
             args.beta1, args.beta2), eps=args.eps, weight_decay=args.weight_decay) for idx in range(client_num)]
+        train_loaders, test_loaders, labels = get_data(args.dataset)(args, server_model.preprocess).get_dataloader(a_iter)
         for wi in range(args.wk_iters):
-            print("============ Train epoch {} ============".format(wi + a_iter * args.wk_iters))
+            print("============ Train epoch {} task {} ============".format(wi + a_iter * args.wk_iters,a_iter))
             logrecord += 'Train epoch:%d\n' % (wi + a_iter * args.wk_iters)
             for client_idx, model in enumerate(models):
                 if client_idx in args.test_envs:
@@ -242,7 +246,7 @@ if __name__ == '__main__':
     print('best test acc: '+ts)
     logrecord += 'best test acc: '+ts
     filename = 'results/clip_'+args.dataset+'_'+str(args.datapercent)+'/'+str(
-        args.test_envs[0])+'_'+str(args.iters)+'-'+str(args.wk_iters)+'-'+args.mode+'_'+str(args.lr)
+        args.test_envs)+'_'+str(args.iters)+'-'+str(args.wk_iters)+'-'+args.mode+'_'+str(args.lr)
     filename = filename+'_'+args.net
     os.makedirs(filename, exist_ok=True)
     with open(filename+'/output.txt', 'w') as f:

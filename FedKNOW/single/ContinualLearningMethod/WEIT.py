@@ -36,7 +36,7 @@ class Appr(object):
         self.optim_type = args.optim
         self.clipgrad = clipgrad
         self.args = args
-        self.e_rep = 10
+        self.e_rep = 5
         self.ce = torch.nn.CrossEntropyLoss()
         self.optimizer = self._get_optimizer()
         self.old_task=-1
@@ -96,6 +96,7 @@ class Appr(object):
             # Train
             loss = self.train_epoch(clip_model, t)
             train_acc = self.eval(clip_model, t)
+
             if e % self.e_rep == self.e_rep -1:
                 print('| Epoch {:3d} | Train loss={:3.1f} acc={:5.1f}% | \n'.format(
                     e + 1, loss ,100 * train_acc), end='')

@@ -8,6 +8,11 @@ import torch
 from typing import List
 import itertools
 from torch.utils.data import TensorDataset, DataLoader
+def add_laplace_noise(vector, sensitivity=0.1, epsilon=10, device=None):
+    b = sensitivity / epsilon
+    noise = np.random.laplace(scale=b, size=vector.shape)    
+    noisy_vector = vector + torch.tensor(noise).to(device)
+    return noisy_vector.float()
 
 def train_server(clip_model: ClipModelMA, clients: List[Client], device):
     clip_model.MoE = clip_model.MoE.to(device)
@@ -16,10 +21,7 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], device):
     clip_model.MoE.experts.eval()
 
     temp_data = torch.tensor(np.stack([i.feature_data for i in clients]).reshape(-1, 768), dtype=torch.float)
-    # print(temp_data.shape, clients[0].feature_data.shape)
     temp_label_data = torch.tensor(list(itertools.chain.from_iterable([[i.assign]*len(i.feature_data) for i in clients])), dtype=torch.long)
-    # print(temp_label_data)
-    # print(temp_data.shape)
 
     dataset = TensorDataset(temp_data, temp_label_data)
     dataloader = DataLoader(dataset=dataset, batch_size=100, shuffle=True)
@@ -30,6 +32,7 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], device):
             data, label = batch
 
             data = data.to(device)
+            data = add_laplace_noise(data, device=device)
             _ , loss_gate, logits = clip_model.MoE(data, train_gate=True)
             
 
@@ -49,21 +52,30 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], device):
 
 
 @torch.no_grad()
-def test_server(clip_model: ClipModelMA, data_loader: DataLoader, device):
+def test_server(clip_model: ClipModelMA, data_loader: DataLoader,server_data, device):
     clip_model.model.eval()
     clip_model.MoE.eval()
     total = 0
     correct = 0
+    
+    data_feature = torch.tensor(server_data.preprocess(),dtype=torch.float)
+    # print(data_feature[0].shape, type(data_feature[0]))
+    dataset = TensorDataset(data_feature)
+    list_feature_dataloader = list(DataLoader(dataset=dataset, batch_size=100, shuffle=True))
+
+    
     texts = clip_model.labels
     text_features = clu.get_text_features_list(texts, clip_model.model, device).float()
     with torch.no_grad():
-        for batch in data_loader:
+        for index, batch in enumerate(data_loader):
 
             image, text , label = batch
             image, text, label = image.to(device), text.to(device), label.to(device)
 
+            feature = list_feature_dataloader[index][0].to(device)
+
             image_features = clip_model.model.encode_image(image).float()
-            image_features_attn, _, _ = clip_model.MoE(image_features)
+            image_features_attn, _, _ = clip_model.MoE(x=feature,x2=image_features, train_gate=False)
             image_features = torch.mul(
                 image_features_attn, image_features).detach()
             similarity = clu.get_similarity(image_features, text_features)
@@ -75,4 +87,4 @@ def test_server(clip_model: ClipModelMA, data_loader: DataLoader, device):
             res = res.cpu().numpy()
             correct += np.sum(np.array(res)[:, 0] == np.array(res)[:, 1])
 
-        return correct/total
+        return total, correct

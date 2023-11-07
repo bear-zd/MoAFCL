@@ -96,7 +96,8 @@ def fcl_splitdata(indir:str,outdir:str, sample_strategy:strategy=None) :
 
 
 
-def time_seq_splitdata(indir:str,outdir:str, sample_strategy:strategy=None) :
+
+def final_splitdata(indir:str,outdir:str, sample_strategy:strategy=None) :
     '''
     the indir should be the format like this:
     officehome/
@@ -109,33 +110,47 @@ def time_seq_splitdata(indir:str,outdir:str, sample_strategy:strategy=None) :
         └── Real World
     '''
     domain_data_collection = {i:datacollect(osp.join(indir, i)) for i in sample_strategy.domains}
-    if os.path.exists(outdir):
-        raise FileExistsError()
-    else:
-        os.makedirs(outdir)
+    os.makedirs(outdir)
+    print("first time alloc")
+    
+    for domain in sample_strategy.domains:
+        # domain_data[domain] = datacollect(osp.join(indir, domain))
+        percentage = 0.2
+        num_elements = int(len(domain_data_collection[domain]) * percentage)
+        subset = random.sample(domain_data_collection[domain], num_elements)
+        for path in subset:
+            newpath = os.path.join(outdir, "test",*(path.split(indir)[1].split(os.path.sep)[:-1]))
+            os.makedirs(newpath, exist_ok=True)
+            shutil.copy(path, newpath)
+        for element in subset:
+            print(element)
+            domain_data_collection[domain].remove(element)
+            
     for i in range(sample_strategy.num_client): # calculate domain sample prob for each client and copy the file 
         print(f"client {i} sampling , strategy : {sample_strategy.__class__.__name__}")
-        prob = sample_strategy.prob(i)
-        num_per_domain = {domain:int(prob[domain]*sample_strategy.num_sample_per) for domain in prob} # get prob form strategy
-        print(f"client {i} each domain prob: {num_per_domain}")
-        cur_client_data = []
-        for domain in num_per_domain:
-            cur_client_data += random.sample(domain_data_collection[domain], num_per_domain[domain])
-        for path in tqdm(cur_client_data):
-            newdir = os.path.join(outdir, f"client{i}", *(path.split(os.path.sep)[1:-1])) # concat the new path
-            os.makedirs(newdir, exist_ok=True)
-            newpath = os.path.join(newdir,path.split(os.path.sep)[-1])
-            shutil.copy(path, newpath)
-            
+        for task in range(sample_strategy.num_task):
+            prob = sample_strategy.prob(i)
+            num_per_domain = {domain:int(prob[domain]*sample_strategy.num_sample_per) for domain in prob} # get prob form strategy
+            print(f"client {i} each domain prob: {num_per_domain}")
+            cur_client_data = []
+            for domain in num_per_domain:
+                cur_client_data += random.sample(domain_data_collection[domain], num_per_domain[domain])
+            for path in tqdm(cur_client_data):
+                newdir = os.path.join(outdir, f"client{i}",f"task{task}", *(path.split(indir)[1].split(os.path.sep)[:-1]))
+                os.makedirs(newdir, exist_ok=True)
+                newpath = os.path.join(newdir,path.split(os.path.sep)[-1])
+                shutil.copy(path, newpath)
+
+
         
 
 
 
 if __name__ == "__main__":
     INDIR = "/mnt/sda/zd/data/officehome"
-    OUTDIR = '/mnt/sda/zd/data/splitdata'
+    OUTDIR = '/mnt/sda/zd/data/splitdata_new'
     sample_strategy = single_strategy(os.listdir(INDIR), 10, 4,1000)
-    fcl_splitdata(INDIR, OUTDIR, sample_strategy)
+    final_splitdata(INDIR, OUTDIR, sample_strategy)
 
 
     

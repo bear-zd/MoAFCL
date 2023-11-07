@@ -18,7 +18,7 @@ def args_parser():
 
     parser.add_argument('--shard_per_user', type=int, default=5, help="classes per user")
     parser.add_argument('--frac', type=float, default=1, help="the fraction of clients: C")
-    parser.add_argument('--local_ep', type=int, default=6, help="the number  of local epochs: E")
+    parser.add_argument('--local_ep', type=int, default=5, help="the number  of local epochs: E")
     parser.add_argument('--local_test_bs', type=int, default=30, help="the number  of local test epochs: E")
     parser.add_argument('--local_bs', type=int, default=20, help="local batch size: B")
    

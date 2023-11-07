@@ -30,11 +30,12 @@ class WeITAdapter(nn.Module):
         input_size = ADAPTER_PARAMETER[base_model]['image_feature']
         output_size = ADAPTER_PARAMETER[base_model]['output_feature']
         hidden_size = ADAPTER_PARAMETER[base_model]['hidden_size']
-        print(device)
+        # print(device)
+        self.weight_keys = []
         self.fc1 = DecomposedLinear(input_size, hidden_size, device=device)
         self.tanh = nn.Tanh()
         self.last = DecomposedLinear(hidden_size, output_size,device=device)
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(1)
 
     def set_sw(self,glob_weights):
         self.fc1.sw = Parameter(glob_weights[0])

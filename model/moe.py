@@ -253,7 +253,7 @@ class MoE(nn.Module):
 
         return gates, load, logits
 
-    def forward(self, x, loss_coef=1e-2, train_gate=False):
+    def forward(self, x, x2=None, loss_coef=1e-2, train_gate=False):
         """Args:
         x: tensor shape [batch_size, input_size]
         train: a boolean scalar.
@@ -276,7 +276,7 @@ class MoE(nn.Module):
             return None, loss, logits
         else:
           dispatcher = SparseDispatcher(self.num_experts, gates)
-          expert_inputs = dispatcher.dispatch(x)
+          expert_inputs = dispatcher.dispatch(x2)
           gates = dispatcher.expert_to_gates()
           expert_outputs = [self.experts[i](expert_inputs[i]) for i in range(self.num_experts)]
           y = dispatcher.combine(expert_outputs)

@@ -42,7 +42,6 @@ def train_client(clip_model : ClipModelMA, image_adapter: Adapter, dataloader, d
     optimizer = optim.Adam(params=image_adapter.parameters(), lr=args.lr, betas=(
                     args.beta1, args.beta2), eps=args.eps, weight_decay=args.weight_decay) 
     clip_model.model.to(device)
-    clip_model.model.train()
     image_adapter.to(device)
     image_adapter.train()
     loss_img = nn.CrossEntropyLoss()

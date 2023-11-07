@@ -65,7 +65,19 @@ if __name__ == '__main__':
     net_keys = [*net_glob.state_dict().keys()]
 
     # specify the representation parameters (in w_glob_keys) and head parameters (all others)
-    w_glob_keys = []
+    w_glob_keys = [net_glob.weight_keys[i] for i in [j for j in range(len(net_glob.weight_keys))]]
+    num_param_glob = 0
+    num_param_local = 0
+    for key in net_glob.state_dict().keys():
+        num_param_local += net_glob.state_dict()[key].numel()
+        print(num_param_local)
+        if key in w_glob_keys:
+            num_param_glob += net_glob.state_dict()[key].numel()
+    percentage_param = 100 * float(num_param_glob) / num_param_local
+    print('# Params: {} (local), {} (global); Percentage {:.2f} ({}/{})'.format(
+        num_param_local, num_param_glob, percentage_param, num_param_glob, num_param_local))
+    print("learning rate, batch size: {}, {}".format(args.lr, args.local_bs))
+
 
     # generate list of local models for each user
     net_local_list = []
@@ -118,7 +130,7 @@ if __name__ == '__main__':
             start_in = time.time()
             
             #  tr_dataloaders = DataLoader(DatasetSplit(dataset_train[task],dict_users_train[idx][:args.m_ft]),batch_size=args.local_bs, shuffle=True)
-            train_dataloaders, test_dataloaders, _ = dataloader.get_dataloader(0)
+            train_dataloaders, test_dataloaders, _ = dataloader.get_dataloader(task)
             w_local = []
             appr:Appr = apprs[idx]
             appr.set_sw(w_agg)
@@ -159,7 +171,7 @@ if __name__ == '__main__':
                 if len(apprs[i].pre_weight['aw']) < task+1:
                     print("client " + str(i) + " not train")
 
-                    train_dataloaders, test_dataloaders, _ = dataloader.get_dataloader(0)
+                    train_dataloaders, test_dataloaders, _ = dataloader.get_dataloader(task)
 
                     apprs[i].set_sw(w_agg)
                     apprs[i].set_trData(train_dataloaders[i])

@@ -42,6 +42,7 @@ def main():
                                                 equals to the datasplit client number."
     server_model.labels = labels
     logging.info("Data init successful!")
+    # print(len(test_loaders))
     
     server_model.init_MoE() # expert number already saved in the server_model.
     logging.info("Model MoE init successful!")  # use the structure of single CLIP training server and client
@@ -51,10 +52,10 @@ def main():
         train_loaders, test_loaders, labels = dataloader.get_dataloader(task)
         if (task == 0): # start up
             logging.info("first round start cluster!")
-            for client in range(args.n_clients):
+            for client in tqdm(range(args.n_clients)):
                 clients_data[client].feature_data = []
                 temp_hook = server_model.model.visual.transformer.resblocks[0].register_forward_hook(clients_data[client].extract_feature())
-                for i in range(args.inner_iters):
+                for i in range(args.inner_iter):
                     train_client(server_model, clients_data[client].adapter, train_loaders[client], args.device, args)
                     if i ==0 :
                         temp_hook.remove()
@@ -77,16 +78,21 @@ def main():
         communicate(server_model, clients_data, args.device)
         for client in range(args.n_clients):
             clients_data[client].feature_data = []
-        
-        # start test
-        test_acc_list, train_acc_list = [], []
-        for client in range(args.n_clients):
-            train_acc = test_client(server_model, clients_data[client].adapter, train_loaders[client],  args.device)
-            test_acc = test_client(server_model, clients_data[client].adapter, test_loaders[client],  args.device)
-            train_acc_list.append(train_acc)
-            test_acc_list.append(test_acc)
-            logging.info(f"client {client} - fetch successfully!, test_acc: {test_acc}, train_acc: {train_acc}")
-        print(train_acc_list, test_acc_list)
+        server_data = Client(args.net,args.device)
+        total, correct = 0, 0
+        # print(len(test_loaders))
+        for i in test_loaders:
+            temp_hook = server_model.model.visual.transformer.resblocks[0].register_forward_hook(server_data.extract_feature())
+            for image, _, _ in i:
+                image = image.to(args.device)
+                _ = server_model.model.encode_image(image).float() # just for the hook work
+            temp_hook.remove()
+            len_t, correct_t = test_server(server_model, i,  server_data,args.device)
+            total += len_t; correct += correct_t
+            server_data.feature_data = []
+            logging.info(f"task {task} - {i.domain} test_acc: {correct_t/len_t}")
+        logging.info(f"task {task} total test_acc: {correct/total}")
+
             
             
        

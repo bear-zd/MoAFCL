@@ -12,7 +12,7 @@ def argparser():
     parser.add_argument('--n_clients', type=int, default=10, help="number of clients")
     parser.add_argument('--n_experts', type=int, default=5, help="number of expert model")
     parser.add_argument('--inner_iter', type=int, default=10, help="number clients inner train iter times")
-    parser.add_argument('--n_task', type=int, default=10, help="number of tasks")
+    parser.add_argument('--n_task', type=int, default=4, help="number of tasks")
 
     # data setting parameter
     parser.add_argument('--datapercent', type=float,
@@ -22,7 +22,7 @@ def argparser():
 
     
     # optimizer parameter
-    parser.add_argument('--lr', type=float, default=5e-3, help='learning rate')
+    parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
     parser.add_argument('--beta1', type=float, default=0.9)
     parser.add_argument('--beta2', type=float, default=0.98)
     parser.add_argument('--eps', type=float, default=1e-6)

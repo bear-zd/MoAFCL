@@ -14,6 +14,7 @@ from PIL import ImageFile
 import numpy as np
 from PIL import Image
 import torchvision.transforms as transforms
+from functools import reduce
 
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -21,23 +22,25 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 class ImageTextData(object):
     def __init__(self, root, client_name, task_id, preprocess, prompt="a picture of a"):
-        client_data_path = osp.join(root, client_name, f"task{task_id}")
+        if (client_name == "test"):
+            client_data_path = osp.join(root, client_name, task_id)
+        else:
+            client_data_path = osp.join(root, client_name, f"task{task_id}")
         
         if len(os.listdir(client_data_path)) > 1:
-            logging.info(f"loading data in {client_data_path} with {os.listdir(client_data_path)}")
-            data = []
-            for domain in os.listdir(client_data_path):
-                data.append(datasets.ImageFolder(osp.join(client_data_path, domain),transform=ImageTextData._TRANSFORM))
-            data = ConcatDataset(data)
+            logging.info(f"loading data in {client_data_path} with {os.listdir(osp.join(root, client_name))}")
+            data = datasets.ImageFolder(client_data_path ,transform=ImageTextData._TRANSFORM)
         else:
             logging.info(f"loading data in {osp.join(client_data_path, os.listdir(client_data_path)[0])}")
             data = datasets.ImageFolder(
                 osp.join(client_data_path, os.listdir(client_data_path)[0]),
                 transform=self._TRANSFORM,
             )
-
-        self.data = data
+        
         self.labels = data.classes
+        self.labels = sorted(self.labels)
+        self.data = data
+        
 
         if prompt:
             self.labels = [prompt + " " + x for x in self.labels]
@@ -80,21 +83,26 @@ class DomainDataset:
         train_datasets, test_datasets = [], []
         train_dataloaders, test_dataloaders = [], []
         
+        
         for _, client_name in enumerate(sorted(os.listdir(self.root_dir))):
+            if client_name == 'test':
+                for domain in os.listdir(osp.join(self.root_dir, client_name)):
+                    test_datasets.append(ImageTextData(self.root_dir, client_name, domain, self.preprocess))
+                    test_dataloaders.append(DataLoader(test_datasets[-1], batch_size=self.batch_size, shuffle=True))
+                    test_dataloaders[-1].domain = domain
+                continue
             data = ImageTextData(self.root_dir, client_name, task_id, self.preprocess)
             l = len(data)
             index = np.arange(l)
             np.random.seed(self.random_seed)
             np.random.shuffle(index)
-            l1, l2 = int(l * self.train_percentage), int(l * (1 - self.train_percentage))
-            train_datasets.append(Subset(data, index[:l1]))
-            test_datasets.append(Subset(data, index[l1 : l1 + l2 + 1]))
+            train_datasets.append(data)
+            # l1, l2 = int(l * self.train_percentage), int(l * (1 - self.train_percentage))
+            # train_datasets.append(Subset(data, index[:l1]))
+            # test_datasets.append(Subset(data, index[l1 : l1 + l2 + 1]))
             train_dataloaders.append(
                 DataLoader(
                     train_datasets[-1], batch_size=self.batch_size, shuffle=True))
-            test_dataloaders.append(
-                DataLoader(
-                    test_datasets[-1], batch_size=self.batch_size, shuffle=False)) # build dataloader for each clients
         
         return train_dataloaders, test_dataloaders, self.labels
     
