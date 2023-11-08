@@ -20,9 +20,9 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], device):
     clip_model.MoE.train()
     clip_model.MoE.experts.eval()
 
-    temp_data = torch.tensor(np.stack([i.feature_data for i in clients]).reshape(-1, 768), dtype=torch.float)
-    temp_label_data = torch.tensor(list(itertools.chain.from_iterable([[i.assign]*len(i.feature_data) for i in clients])), dtype=torch.long)
-
+    temp_data = torch.tensor(np.stack([i.preprocess() for i in clients]).reshape(-1, 768), dtype=torch.float)
+    temp_label_data = torch.tensor(list(itertools.chain.from_iterable([[i.assign]*len(i.preprocess()) for i in clients])), dtype=torch.long)
+    print(temp_data.shape, temp_label_data.shape)
     dataset = TensorDataset(temp_data, temp_label_data)
     dataloader = DataLoader(dataset=dataset, batch_size=100, shuffle=True)
 
@@ -49,8 +49,6 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], device):
 
 
 
-
-
 @torch.no_grad()
 def test_server(clip_model: ClipModelMA, data_loader: DataLoader,server_data, device):
     clip_model.model.eval()
@@ -64,20 +62,27 @@ def test_server(clip_model: ClipModelMA, data_loader: DataLoader,server_data, de
     list_feature_dataloader = list(DataLoader(dataset=dataset, batch_size=100, shuffle=True))
 
     
-    texts = clip_model.labels
-    text_features = clu.get_text_features_list(texts, clip_model.model, device).float()
+    # texts = clip_model.labels
+    # text_features = clu.get_text_features_list(texts, clip_model.model, device).float()
     with torch.no_grad():
         for index, batch in enumerate(data_loader):
 
-            image, text , label = batch
+            image, text, label = batch
             image, text, label = image.to(device), text.to(device), label.to(device)
 
             feature = list_feature_dataloader[index][0].to(device)
 
             image_features = clip_model.model.encode_image(image).float()
-            image_features_attn, _, _ = clip_model.MoE(x=feature,x2=image_features, train_gate=False)
-            image_features = torch.mul(
-                image_features_attn, image_features).detach()
+            # image_features_attn, _, _ = clip_model.MoE(x=feature,x2=image_features, train_gate=False)
+            domain_feature, _, _ = clip_model.MoE(x=feature,x2=feature, train_gate=False)
+            mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
+            _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+            text_features = clip_model._get_text_features(_mean_domain_features.half())
+            
+            image_features = image_features / image_features.norm(dim=-1, keepdim=True).float()
+            text_features = text_features / text_features.norm(dim=-1, keepdim=True).float()
+            # image_features = torch.mul(
+            #     image_features_attn, image_features).detach()
             similarity = clu.get_similarity(image_features, text_features)
 
             _, indices = similarity.topk(1)
