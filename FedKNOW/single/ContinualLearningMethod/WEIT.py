@@ -13,6 +13,8 @@ sys.path.append('..')
 import torch.nn.functional as F
 import torch.nn as nn
 import utils.cliputils as clu
+import itertools
+from torch.utils.data import TensorDataset, DataLoader
 
 def freeze_model(model):
     for param in model.parameters():
@@ -36,7 +38,7 @@ class Appr(object):
         self.optim_type = args.optim
         self.clipgrad = clipgrad
         self.args = args
-        self.e_rep = 5
+        self.e_rep = 1
         self.ce = torch.nn.CrossEntropyLoss()
         self.optimizer = self._get_optimizer()
         self.old_task=-1
@@ -46,7 +48,16 @@ class Appr(object):
             'mask':[]
         }
         self.device = args.device
-
+        self.feature_data = []
+    def extract_feature(self):
+        def hook(module, input, output):
+            self.feature_data.append(output.permute(1,0,2).detach().cpu().numpy())
+        return hook
+    def preprocess(self):
+        temp = list(itertools.chain.from_iterable(self.feature_data))
+        temp = np.stack(temp, axis = 0)
+        temp = np.mean(temp, axis=1)
+        return temp
     def set_sw(self,glob_weights):
         i = 0
         keys = [k for k, _ in self.model.named_parameters()]
@@ -92,12 +103,15 @@ class Appr(object):
         self.optimizer = self._get_optimizer()
         self.model.to(self.device)
         # Loop epochs 
+        self.temp_hook = clip_model.model.visual.transformer.resblocks[0].register_forward_hook(self.extract_feature())
+        for image,_,_ in self.tr_dataloader:
+            clip_model.model.encode_image(image.to(self.device))
+        self.temp_hook.remove()
         for e in range(self.nepochs):
             # Train
             loss = self.train_epoch(clip_model, t)
-            train_acc = self.eval(clip_model, t)
-
             if e % self.e_rep == self.e_rep -1:
+                train_acc = self.eval(clip_model, t)
                 print('| Epoch {:3d} | Train loss={:3.1f} acc={:5.1f}% | \n'.format(
                     e + 1, loss ,100 * train_acc), end='')
         if len(self.pre_weight['aw'])<=t:
@@ -127,36 +141,47 @@ class Appr(object):
                 elif 'mask' in name:
                     self.pre_weight['mask'][-1].append(para)
             self.pre_weight['weight'][-1] = self.model.get_weights()
-            
+        self.feature_data = []
 
         return self.get_sw(), loss, train_acc
 
     def train_epoch(self,clip_model, t):
         self.model.train()
-        clip_model.model.train()
+        # clip_model.model.train()
         total_loss = 0
         total_nums = 0
-        for image, text,_ in self.tr_dataloader:
-            image = image.to(self.device)
-            text = text.to(self.device)
+        clip_model.model.eval()
+        client_domain_feature = torch.tensor(self.preprocess(), dtype=torch.float)
+        list_image_domain_features = list(DataLoader(TensorDataset(client_domain_feature),batch_size=50, shuffle=False))
+
+        for index, batch in enumerate(self.tr_dataloader):
+            image, _ ,label = batch
+            image, label = image.to(self.device), label.to(self.device)
             # Forward current model
+            
             self.optimizer.zero_grad()
             self.model.zero_grad()
-            image_features = clip_model.model.encode_image(image).float()
-            image_features_att = self.model(image_features)
-            image_features = torch.mul(image_features_att, image_features)
-            text_features = clip_model.model.encode_text(text).float()
+            domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
+            mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
+            _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+            text_features = clip_model._get_text_features(_mean_domain_features.half())
+
+            image_features = clip_model.model.encode_image(image).half()
+            # image_features_att = self.model(image_features)
+            # image_features = torch.mul(image_features_att, image_features)
+            # text_features = clip_model.model.encode_text(text).float()
 
             image_features = image_features / image_features.norm(dim=1, keepdim=True)
             text_features = text_features / text_features.norm(dim=1, keepdim=True)
 
             logit_scale = clip_model.model.logit_scale.exp()
             logits_per_image = logit_scale * image_features @ text_features.t()
-            logits_per_text = logits_per_image.t()
+            loss = F.cross_entropy(logits_per_image, label)
+            # logits_per_text = logits_per_image.t()
             
-            ground_truth = torch.arange(len(image), dtype=torch.long, device=self.device)
-            loss = (self.ce(logits_per_image, ground_truth) + 
-                self.ce(logits_per_text, ground_truth))/2
+            # ground_truth = torch.arange(len(image), dtype=torch.long, device=self.device)
+            # loss = (self.ce(logits_per_image, ground_truth) + 
+            #     self.ce(logits_per_text, ground_truth))/2
             loss += self.get_loss(t)
             ## 根据这个损失计算梯度，变换此梯度
             total_loss+= loss
@@ -217,19 +242,29 @@ class Appr(object):
         self.model.eval()
         clip_model.model.eval()
         dataloaders = self.tr_dataloader
-        texts = clip_model.labels
-        text_features = clu.get_text_features_list(texts, clip_model.model, self.device).float()
+        # texts = clip_model.labels
+        # text_features = clu.get_text_features_list(texts, clip_model.model, self.device).float()
+        client_domain_feature = torch.tensor(self.preprocess(), dtype=torch.float)
+        list_image_domain_features = list(DataLoader(TensorDataset(client_domain_feature),batch_size=50, shuffle=False))
+
         total = 0
         correct = 0
         # Loop batches
         with torch.no_grad():
-            for image, text, label in dataloaders:
-                image, text, label = image.to(self.device), text.to(self.device), label.to(self.device)
+            for index, batch in enumerate(dataloaders):
+                image, _, label = batch
+                image, label = image.to(self.device), label.to(self.device)
+                domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
+                mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
+                _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+                text_features = clip_model._get_text_features(_mean_domain_features.half())
 
-                image_features = clip_model.model.encode_image(image).float()
-                image_features_att = self.model(image_features)
-                image_features = torch.mul(
-                    image_features_att, image_features).detach()
+                
+
+                image_features = clip_model.model.encode_image(image).half()
+                # image_features_att = self.model(image_features)
+                # image_features = torch.mul(
+                    # image_features_att, image_features).detach()
                 similarity = clu.get_similarity(image_features, text_features)
                 
                 _, indices = similarity.topk(1)

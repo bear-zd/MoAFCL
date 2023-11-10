@@ -9,7 +9,12 @@ import quadprog
 sys.path.append('..')
 import torch.nn.functional as F
 import torch.nn as nn
-def compute_offsets(task, nc_per_task, is_cifar=True):
+from collections import OrderedDict
+import itertools
+from torch.utils.data import TensorDataset
+import utils.cliputils as clu
+
+def compute_offsets(task, nc_per_task, is_cifar=False):
     """
         Compute offsets for cifar to determine which
         outputs to select for a given task.
@@ -21,34 +26,7 @@ def compute_offsets(task, nc_per_task, is_cifar=True):
         offset1 = 0
         offset2 = nc_per_task
     return offset1, offset2
-def fisher_matrix_diag(t,dataloader, model,num_classes = 10,device=None):
-    # Init
-    fisher = {}
-    for n, p in model.feature_net.named_parameters():
-        fisher[n] = 0 * p.data
-    # Compute
-    model.train()
-    criterion = torch.nn.CrossEntropyLoss()
-    offset1, offset2 = compute_offsets(t, num_classes)
-    all_num = 0
-    for images,target in dataloader:
-        images = images.to(device)
-        target = (target - num_classes * t).to(device)
-        all_num += images.shape[0]
-        # Forward and backward
-        model.zero_grad()
-        outputs = model.forward(images, t)[:, offset1: offset2]
-        loss = criterion(outputs, target)
-        loss.backward()
-        # Get gradients
-        for n, p in model.feature_net.named_parameters():
-            if p.grad is not None:
-                fisher[n] += images.shape[0] * p.grad.data.pow(2)
-    # Mean
-    with torch.no_grad():
-        for n, _ in model.feature_net.named_parameters():
-            fisher[n] = fisher[n] / all_num
-    return fisher
+
 def overwrite_grad(pp, newgrad, grad_dims):
     """
         This is used to overwrite the gradients with a new gradient
@@ -161,11 +139,48 @@ class Appr(object):
         self.e_rep = args.local_local_ep
         self.old_task=-1
         self.grad_dims = []
-        self.num_classes = args.num_classes // args.task
+        self.num_classes = args.num_classes # 不确定
+        self.pre_weight = {
+            'weight':[],
+            'aw':[],
+            'mask':[]
+        }
         for param in self.model.feature_net.parameters():
             self.grad_dims.append(param.data.numel())
         self.select_grad_num = args.select_grad_num
-        return
+
+        self.device = args.device
+        self.feature_data = []
+    
+    def extract_feature(self):
+        def hook(module, input, output):
+            self.feature_data.append(output.permute(1,0,2).detach().cpu().numpy())
+        return hook
+    def preprocess(self):
+        temp = list(itertools.chain.from_iterable(self.feature_data))
+        temp = np.stack(temp, axis = 0)
+        temp = np.mean(temp, axis=1)
+        return temp
+
+    def set_sw(self, glob_weights):
+        i = 0
+        keys = [k for k, _ in self.model.named_parameters()]
+        if len(glob_weights) > 0:
+            all_weights = []
+            for name, para in self.model.named_parameters():
+                if 'sw' in name:
+                    all_weights.append(glob_weights[i])
+                    i = i + 1
+                else:
+                    all_weights.append(para)
+            model_dict = self.model.state_dict()
+            feature_dict = zip(keys, all_weights)
+            # last_dict = OrderedDict({k: torch.Tensor(v) for k, v in zip(last_keys,last_para)})
+            save_model = OrderedDict({k: v for k, v in feature_dict})
+            state_dict = {k: v for k, v in save_model.items() if k in model_dict.keys()}
+            model_dict.update(state_dict)
+            self.model.load_state_dict(model_dict)
+
     def set_model(self,model):
         self.model = model
     def set_fisher(self,fisher):
@@ -186,151 +201,229 @@ class Appr(object):
             else:
                 optimizer = torch.optim.Adam(self.packmodel.parameters(), lr=lr,weight_decay=self.lr_decay)
         return optimizer
-    def train(self, t):
+
+    def train(self, clip_model, t):
         self.model.to(self.device)
         self.model_old.to(self.device)
         self.packmodel.to(self.device)
         oldpackmodel = deepcopy(self.packmodel)
+        self.temp_hook = clip_model.model.visual.transformer.resblocks[0].register_forward_hook(self.extract_feature())
+        for image,_,_ in self.tr_dataloader:
+            clip_model.model.encode_image(image.to(self.device))
+        self.temp_hook.remove()
         if t!=self.old_task:
             self.model_old = deepcopy(self.model)
             self.model_old.train()
             freeze_model(self.model_old)  # Freeze the weights
-            self.old_task=t
+            self.old_task = t
         self.optimizer = self._get_optimizer()
-        self.pack.on_init_end(self.packmodel,t)
+        self.pack.on_init_end(self.packmodel, t)
         # trian model
         if len(self.pack.masks) > t:
             self.pack.masks.pop()
         for e in range(self.nepochs):
             # Train
-            clock0 = time.time()
-
             if e < self.e_rep:
-                for name,para in self.model.named_parameters():
+                for name, para in self.model.named_parameters():
                     if 'feature_net' in name:
                         para.requires_grad = False
                     else:
                         para.requires_grad = True
-            else :
-                for name,para in self.model.named_parameters():
+            else:
+                for name, para in self.model.named_parameters():
                     if 'feature_net' in name:
                         para.requires_grad = True
                     else:
                         para.requires_grad = False
             if t == 0:
-                self.train_epoch_rep(t, e, oldpackmodel)
+                self.train_epoch_rep(t, e, oldpackmodel, clip_model)
             else:
                 if e < self.e_rep:
-                    self.train_epoch_head(t)
+                    self.train_epoch_head(t, e, oldpackmodel, clip_model)
                 else:
-                    self.train_epoch_rep(t, e,oldpackmodel)
-            self.train_packnet(t)
+                    self.train_epoch_rep(t, e, oldpackmodel, clip_model)
+            self.train_packnet(t, clip_model)
             self.pack.on_epoch_end(self.packmodel.feature_net,e,t)
 
 
-            train_loss, train_acc = self.eval(t)
+            train_acc = self.eval(clip_model, t)
             if e % self.e_rep == self.e_rep -1:
-                print('| Epoch {:3d} | Train: loss={:.3f}, acc={:5.1f}% | \n'.format(
-                    e + 1,  train_loss, 100 * train_acc), end='')
-        # Fisher ops
-        # fisher_old = {}
-        # if t>0:
-        #     for n, _ in self.model.feature_net.named_parameters():
-        #         fisher_old[n] = self.fisher[n].clone()
-        # self.fisher = fisher_matrix_diag(t,self.tr_dataloader, self.model,num_classes=self.num_classes)
-        # if t > 0:
-        #     # Watch out! We do not want to keep t models (or fisher diagonals) in memory, therefore we have to merge fisher diagonals
-        #     for n, _ in self.model.feature_net.named_parameters():
-        #         self.fisher[n] = (self.fisher[n] + fisher_old[n] * t) / (
-        #                 t + 1)  # Checked: it is better than the other option
-        return self.fisher,train_loss, train_acc
-    def train_packnet(self,t):
+                print('| Epoch {:3d} | acc={:5.1f}% | \n'.format(
+                    e + 1, 100 * train_acc), end='')
+        self.feature_data = []
+        return self.fisher, train_acc
+    def train_packnet(self, t, clip_model):
         self.packmodel.train()
-        for images, targets in self.tr_dataloader:
-            images = images.to(self.device)
-            targets = (targets - self.num_classes * t).to(self.device)
-            offset1, offset2 = compute_offsets(t, self.num_classes)
-            outputs = self.packmodel.forward(images, t)[:, offset1:offset2]
-            loss = self.ce(outputs, targets)
+        clip_model.model.eval()
+
+        client_domain_feature = torch.tensor(self.preprocess(), dtype=torch.float)
+        list_image_domain_features = list(DataLoader(TensorDataset(client_domain_feature),batch_size=50, shuffle=False))
+
+        for index, batch in enumerate(self.tr_dataloader):
+            images, _ ,labels = batch
+            images, labels = images.to(self.device), labels.to(self.device)
+
+            domain_feature = self.packmodel(list_image_domain_features[index][0].to(self.device))
+            mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
+            _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+            text_features = clip_model._get_text_features(_mean_domain_features.half())
+
+            image_features = image_features / image_features.norm(dim=1, keepdim=True)
+            text_features = text_features / text_features.norm(dim=1, keepdim=True)
+
+            logit_scale = clip_model.model.logit_scale.exp()
+            logits_per_image = logit_scale * image_features @ text_features.t()
+
+            loss = F.cross_entropy(logits_per_image, labels)
+
             self.pack_optimizer.zero_grad()
             loss.backward()
             self.pack.on_after_backward(self.packmodel.feature_net,t)
             self.pack_optimizer.step()
 
-    def train_epoch_head(self,t):
+    def train_epoch_head(self, t, epoch,oldpackmodel, clip_model):
         self.model.train()
-        for images,targets in self.tr_dataloader:
-            images = images.to(self.device)
-            targets = (targets - self.num_classes * t).to(self.device)
+        clip_model.model.eval()
+
+        client_domain_feature = torch.tensor(self.preprocess(), dtype=torch.float)
+        list_image_domain_features = list(DataLoader(TensorDataset(client_domain_feature),batch_size=50, shuffle=False))
+
+        for index, batch in enumerate(self.tr_dataloader):
+            images, _, labels = batch
+            images, labels = images.to(self.device), labels.to(self.device)
             # Forward current model
-            offset1, offset2 = compute_offsets(t, self.num_classes)
-            preLabels = self.model_old.forward(images,t,pre=True)[:, 0: offset1]
-            preoutputs = self.model.forward(images,t,pre=True)[:, 0: offset1]
+
+            pre_image_features = clip_model.model.encode_image(images).float()
+
+            pre_domain_feature = self.model_old(list_image_domain_features[index][0].to(self.device))
+            pre_mean_domain_feature = pre_domain_feature.mean(dim=0, keepdim=True)
+            _pre_mean_domain_features = pre_mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+            pre_text_features = clip_model._get_text_features(_pre_mean_domain_features.half())
+
+            pre_image_features = pre_image_features / pre_text_features.norm(dim=1, keepdim=True)
+            pre_text_features = pre_text_features / pre_text_features.norm(dim=1, keepdim=True)
+            pre_logit_scale = clip_model.model.logit_scale.exp()
+            pre_logits_per_image = pre_logit_scale * pre_image_features @ pre_text_features.t()
             # self.model.zero_grad()
             self.optimizer.zero_grad()
             self.model.zero_grad()
-            memoryloss=MultiClassCrossEntropy(preoutputs,preLabels,t,T=1)
+            clip_model.model.zero_grad()
+            memoryloss = F.cross_entropy(pre_logits_per_image, labels)
             memoryloss.backward()
             self.optimizer.step()
+
             self.optimizer.zero_grad()
             self.model.zero_grad()
+            clip_model.model.zero_grad()
             # store_grad(self.model.parameters,grads, self.grad_dims,0)
-            outputs = self.model.forward(images,t)[:,offset1:offset2]
-            loss = self.ce(outputs, targets)
+            # image_features = clip_model.model.encode_image(images).float()
+            domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
+            mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
+            _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+            text_features = clip_model._get_text_features(_mean_domain_features.half())
+            text_features = text_features / text_features.norm(dim=1, keepdim=True)
+
+            logit_scale = clip_model.model.logit_scale.exp()
+            logits_per_image = logit_scale * pre_image_features @ text_features.t()
+            
+            loss = F.cross_entropy(logits_per_image, labels)
+
             ## 根据这个损失计算梯度，变换此梯度
 
             # Backward
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-        return
-    def train_epoch_rep(self, t, epoch,oldpackmodel):
+        
+    def train_epoch_rep(self, t, epoch,oldpackmodel, clip_model):
         self.model.train()
+        clip_model.model.train()
         self.packmodel.train()
+        clip_model.model.eval()
+
+        client_domain_feature = torch.tensor(self.preprocess(), dtype=torch.float)
+        list_image_domain_features = list(DataLoader(TensorDataset(client_domain_feature),batch_size=50, shuffle=False))
+
         # Loop batches
-        for images,targets in self.tr_dataloader:
+        for index, batch in enumerate(self.tr_dataloader):
             # Forward current model
-            images = images.to(self.device)
-            targets = (targets - self.num_classes * t).to(self.device)
-            pre_loss = 0
+            images, labels = batch
+            images, labels = images.to(self.device), labels.to(self.device) 
+ 
+            self.optimizer.zero_grad()
+            self.model.zero_grad()
+            clip_model.model.zero_grad()
             grads = torch.Tensor(sum(self.grad_dims), 2+t)
-            offset1, offset2 = compute_offsets(t, self.num_classes)
             grads = grads.to(self.device)
             if t > 0:
-                preLabels = self.model_old.forward(images, t, pre=True)[:, 0: offset1]
-                preoutputs = self.model.forward(images, t, pre=True)[:, 0: offset1]
-                self.model.zero_grad()
-                self.optimizer.zero_grad()
-                pre_loss=MultiClassCrossEntropy(preoutputs,preLabels,t,T=2)
+                pre_image_features = clip_model.model.encode_image(images).float()
+                
+                domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
+                mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
+                _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+                pre_text_features = clip_model._get_text_features(_mean_domain_features.half())
+
+
+                pre_image_features = pre_image_features / pre_text_features.norm(dim=1, keepdim=True)
+                pre_text_features = pre_text_features / pre_text_features.norm(dim=1, keepdim=True)
+                
+                pre_logit_scale = clip_model.model.logit_scale.exp()
+                pre_logits_per_image = pre_logit_scale * pre_image_features @ pre_text_features.t()
+                
+                pre_loss = F.cross_entropy(logits_per_image, labels)
+
                 pre_loss.backward()
-                store_grad(self.model.feature_net.parameters,grads, self.grad_dims,0)
+                store_grad(self.model.feature_net.parameters, grads, self.grad_dims, 0)
                 if t >= self.select_grad_num:
                     t = self.select_grad_num -1
                 for i in range(t):
                     self.model.zero_grad()
                     self.optimizer.zero_grad()
-                    begin, end = compute_offsets(i, self.num_classes)
+                    clip_model.model.zero_grad()
+
                     temppackmodel = deepcopy(oldpackmodel).to(self.device)
                     temppackmodel.train()
                     self.pack.apply_eval_mask(task_idx=i, model=temppackmodel.feature_net)
-                    preoutputs = self.model.forward(images, t, pre=True)[:, begin:end]
+                    pre_image_features = clip_model.model.encode_image(images).float()
                     with torch.no_grad():
-                        oldLabels = temppackmodel.forward(images, i)[:, begin:end]
-                    memoryloss = MultiClassCrossEntropy(preoutputs, oldLabels, i, T=2)
+                        
+                        domain_feature = temppackmodel(list_image_domain_features[index][0].to(self.device))
+                        mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
+                        _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+                        pre_text_features = clip_model._get_text_features(_mean_domain_features.half())
+
+                        pre_image_features = pre_image_features / pre_text_features.norm(dim=1, keepdim=True)
+                        pre_text_features = pre_text_features / pre_text_features.norm(dim=1, keepdim=True)
+                        pre_logit_scale = clip_model.model.logit_scale.exp()
+                        pre_logits_per_image = pre_logit_scale * pre_image_features @ pre_text_features.t()
+                
+                    memoryloss = F.cross_entropy(pre_logits_per_image, labels)
                     memoryloss.backward()
                     store_grad(self.model.feature_net.parameters, grads, self.grad_dims, i+1)
                     del temppackmodel
                 ## 求出每个分类器算出来的梯度
 
-            outputs = self.model.forward(images,t)[:,offset1:offset2]
-            loss = self.ce(outputs, targets)
+            image_features = clip_model.model.encode_image(images).float()
+            domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
+            mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
+            _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+            text_features = clip_model._get_text_features(_mean_domain_features.half())
+
+            image_features = image_features / image_features.norm(dim=1, keepdim=True)
+            text_features = text_features / text_features.norm(dim=1, keepdim=True)
+
+            logit_scale = clip_model.model.logit_scale.exp()
+            logits_per_image = logit_scale * image_features @ text_features.t()
+
+            loss = F.cross_entropy(logits_per_image, labels)
             ## 根据这个损失计算梯度，变换此梯度
 
             # Backward
             self.model.zero_grad()
+            clip_model.model.zero_grad()
             self.optimizer.zero_grad()
             loss.backward()
-            if t>0:
+            if t > 0:
                 # copy gradient
                 store_grad(self.model.feature_net.parameters, grads, self.grad_dims, t+1)
                 taskl = [i for i in range(t+2)]
@@ -348,39 +441,44 @@ class Appr(object):
             self.optimizer.step()
         return
 
-    def moretrain(self,t):
+    def moretrain(self, t, clip_model):
         self.packmodel.to(self.device)
         for e in range(self.nepochs):
-            self.train_packnet(t)
+            self.train_packnet(t, clip_model)
             self.pack.on_epoch_end(self.packmodel.feature_net, e, t)
 
-    def eval(self, t,train=True):
-        total_loss = 0
-        total_acc = 0
-        total_num = 0
+    def eval(self, clip_model, t, train=True):
         self.model.eval()
+        clip_model.model.eval()
         if train:
             dataloaders = self.tr_dataloader
-
+        client_domain_feature = torch.tensor(self.preprocess(), dtype=torch.float)
+        list_image_domain_features = list(DataLoader(TensorDataset(client_domain_feature),batch_size=50, shuffle=False))
+        total = 0
+        correct = 0
         # Loop batches
         with torch.no_grad():
-            for images,targets in dataloaders:
-                images = images.to(self.device)
-                targets = (targets - self.num_classes*t).to(self.device)
+            for index, batch in enumerate(dataloaders):
+                image, _, label = batch
+                image, label = image.to(self.device), label.to(self.device)
                 # Forward
-                offset1, offset2 = compute_offsets(t, self.num_classes)
-                output = self.model.forward(images,t)[:,offset1:offset2]
+                image_features = clip_model.model.encode_image(image).float()
+                
+                domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
+                mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
+                _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+                text_features = clip_model._get_text_features(_mean_domain_features.half())
 
-                loss = self.ce(output, targets)
-                _, pred = output.max(1)
-                hits = (pred == targets).float()
+                similarity = clu.get_similarity(image_features, text_features)
 
-                # Log
-                total_loss += loss.data.cpu().numpy() * len(images)
-                total_acc += hits.sum().data.cpu().numpy()
-                total_num += len(images)
+                _, indices = similarity.topk(1)
+                total += len(label)
+                pred = torch.squeeze(indices)
+                res = torch.cat([pred.view(-1, 1), label.view(-1, 1)], dim=1)
+                res = res.cpu().numpy()
+                correct += np.sum(np.array(res)[:, 0] == np.array(res)[:, 1])
 
-        return total_loss / total_num, total_acc / total_num
+        return correct / total
 
     def criterion(self, t):
         # Regularization for all previous tasks
@@ -391,12 +489,12 @@ class Appr(object):
         return self.lamb * loss_reg
 
 
-def LongLifeTrain(args, appr, aggNum, writer,idx):
+def LongLifeTrain(args, clip_model, appr: Appr, aggNum, from_kb, idx):
     print('cur round :' + str(aggNum)+'  cur client:' + str(idx))
     # acc = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
     # lss = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
     t = aggNum // args.round
-    print('cur task:'+ str(t))
+    print('cur task:' + str(t))
     r = aggNum % args.round
     # for t, ncla in taskcla:
 
@@ -408,9 +506,9 @@ def LongLifeTrain(args, appr, aggNum, writer,idx):
     task = t
 
     # Train
-    fisher,loss,_ = appr.train(task)
+    fisher, acc = appr.train(clip_model, task)
     print('-' * 100)
-    return appr.model.state_dict(),fisher,loss,0
+    return appr.model.state_dict(),fisher,acc,0
 
 def LongLifeTest(args, appr, t, testdatas, aggNum, writer):
     acc = np.zeros((1, t), dtype=np.float32)

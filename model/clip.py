@@ -17,6 +17,7 @@ class Client():
         self.feature_data = []
         self.adapter: VisionDomainAdapter = VisionDomainAdapter(net, 8) 
         self.assign = None
+        self.count_dict = None
     def extract_feature(self):
         def hook(module, input, output):
             self.feature_data.append(output.permute(1,0,2).detach().cpu().numpy())
@@ -26,7 +27,24 @@ class Client():
         temp = np.stack(temp, axis = 0)
         temp = np.mean(temp, axis=1)
         return temp
+
+class VisionDomainAdapter(nn.Module):
+    def __init__(self, base_model, domain_token):
+        super(VisionDomainAdapter, self).__init__()
+        image_feature = ADAPTER_PARAMETER[base_model]['extract_feature']
+        hidden_size = ADAPTER_PARAMETER[base_model]['hidden_size']
+        output_feature = ADAPTER_PARAMETER[base_model]['output_feature']
+        self.input = nn.Linear(image_feature, hidden_size)
+        self.dropout = nn.Dropout(0.1)
+        self.output = nn.Linear(hidden_size, 512*domain_token)
+        self.n_outputs = output_feature
     
+    def forward(self, x):
+        x = self.input(x)
+        x = self.dropout(x)
+        x = F.relu(x)
+        x = self.output(x)
+        return x
 
 
     
@@ -96,23 +114,7 @@ class FedClip(ClipModel):
         if self.imgadpy:
             self.img_adap = Adapter(self.model_name).to(self.device)
 
-class VisionDomainAdapter(nn.Module):
-    def __init__(self, base_model, domain_token):
-        super(VisionDomainAdapter, self).__init__()
-        image_feature = ADAPTER_PARAMETER[base_model]['extract_feature']
-        hidden_size = ADAPTER_PARAMETER[base_model]['hidden_size']
-        output_feature = ADAPTER_PARAMETER[base_model]['output_feature']
-        self.input = nn.Linear(image_feature, hidden_size)
-        self.dropout = nn.Dropout(0.1)
-        self.output = nn.Linear(hidden_size, 512*domain_token)
-        self.n_outputs = output_feature
-    
-    def forward(self, x):
-        x = self.input(x)
-        x = self.dropout(x)
-        x = F.relu(x)
-        x = self.output(x)
-        return x
+
 
 
 class ClipModelMA(ClipModel):
@@ -173,11 +175,17 @@ class ClipModelMA(ClipModel):
 
 
 class FedWeITClip(ClipModel):
-    def __init__(model_name, device):
+    def __init__(self,model_name, device):
         super().__init__(model_name, device)
+        freeze_param(self.model)
     
     def init_WeIT(self):
         freeze_param(self.model)
 
+class FedKNOWClip(ClipModel):
+    def __init__(self, model_name, device):
+        super().__init__(model_name, device)
+        freeze_param(self.model)
+        
 
 

@@ -28,6 +28,7 @@ def init():
     set_random_seed(args.seed)
     args = img_param_init(args)  # init the dataset parameters(domains and classnum)
     args.thresh = 1e-4
+    args.extract_layer = 1
     return args
 
 
@@ -56,7 +57,7 @@ def main():
             
             for client in tqdm(range(args.n_clients)):
                 clients_data[client].feature_data = []
-                clients_data[client].temp_hook = server_model.model.visual.transformer.resblocks[0].register_forward_hook(clients_data[client].extract_feature())
+                clients_data[client].temp_hook = server_model.model.visual.transformer.resblocks[args.extract_layer].register_forward_hook(clients_data[client].extract_feature())
                 acc_list = []
                 for i in range(args.inner_iter):
                     train_client(server_model, clients_data[client], train_loaders[client], args.device, args)
@@ -69,7 +70,7 @@ def main():
             logging.info(f"{task} round start fetch!")
             for client in range(args.n_clients):
                 clients_data[client].feature_data = []
-                temp_hook = server_model.model.visual.transformer.resblocks[0].register_forward_hook(clients_data[client].extract_feature())
+                temp_hook = server_model.model.visual.transformer.resblocks[args.extract_layer].register_forward_hook(clients_data[client].extract_feature())
                 clients_data[client].assign = fetch(server_model, train_loaders[client], clients_data[client],args.device)
                 temp_hook.remove()
         
@@ -86,7 +87,7 @@ def main():
         total, correct = 0, 0
         # print(len(test_loaders))
         for i in test_loaders:
-            temp_hook = server_model.model.visual.transformer.resblocks[0].register_forward_hook(server_data.extract_feature())
+            temp_hook = server_model.model.visual.transformer.resblocks[args.extract_layer].register_forward_hook(server_data.extract_feature())
             for image, _, _ in i:
                 image = image.to(args.device)
                 _ = server_model.model.encode_image(image).float() # just for the hook work

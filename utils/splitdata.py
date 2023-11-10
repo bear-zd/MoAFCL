@@ -39,8 +39,9 @@ class single_strategy(strategy):
             rand_domain = random.randint(0, len(self.domains)-1)
             domain_prob[self.domains[rand_domain]] = 1
         else:
+            print(index)
             domain_prob = {i:0 for i in self.domains}
-            domain_prob[self.domains[(index+self.num_task)%len(self.domains)]] = 1
+            domain_prob[self.domains[(index)%len(self.domains)]] = 1
         # print(domain_prob)
         return domain_prob
 
@@ -79,7 +80,7 @@ def fcl_splitdata(indir:str,outdir:str, sample_strategy:strategy=None) :
     for i in range(sample_strategy.num_client): # calculate domain sample prob for each client and copy the file 
         print(f"client {i} sampling , strategy : {sample_strategy.__class__.__name__}")
         for task in range(sample_strategy.num_task):
-            prob = sample_strategy.prob(task)
+            prob = sample_strategy.prob(task+i)
             num_per_domain = {domain:int(prob[domain]*sample_strategy.num_sample_per) for domain in prob} # get prob form strategy
             print(f"client {i} each domain prob: {num_per_domain}")
             cur_client_data = []
@@ -129,7 +130,7 @@ def final_splitdata(indir:str,outdir:str, sample_strategy:strategy=None) :
     for i in range(sample_strategy.num_client): # calculate domain sample prob for each client and copy the file 
         print(f"client {i} sampling , strategy : {sample_strategy.__class__.__name__}")
         for task in range(sample_strategy.num_task):
-            prob = sample_strategy.prob(i)
+            prob = sample_strategy.prob(i+task)
             num_per_domain = {domain:int(prob[domain]*sample_strategy.num_sample_per) for domain in prob} # get prob form strategy
             print(f"client {i} each domain prob: {num_per_domain}")
             cur_client_data = []
@@ -148,8 +149,8 @@ def final_splitdata(indir:str,outdir:str, sample_strategy:strategy=None) :
 
 if __name__ == "__main__":
     INDIR = "/mnt/sda/zd/data/officehome"
-    OUTDIR = '/mnt/sda/zd/data/splitdata_new'
-    sample_strategy = single_strategy(os.listdir(INDIR), 10, 4,1000)
+    OUTDIR = '/mnt/sda/zd/data/OF10-10-2000-2023'
+    sample_strategy = single_strategy(os.listdir(INDIR), 10, 10, 2000,seq=True)
     final_splitdata(INDIR, OUTDIR, sample_strategy)
 
 

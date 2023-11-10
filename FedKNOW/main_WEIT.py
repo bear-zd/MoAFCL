@@ -47,6 +47,7 @@ if __name__ == '__main__':
     dataloader: DomainDataset = get_data(args.dataset)(args, server_model.preprocess)
     train_loaders, test_loaders, labels = dataloader.get_dataloader(0)
     server_model.labels = labels
+    server_model.init_prompt()
 
     # lens = np.ones(args.num_users)
     # if 'cifar' in args.dataset or args.dataset == 'mnist' or 'miniimagenet' in args.dataset or 'FC100' in args.dataset or 'Corn50' in args.dataset:
@@ -165,41 +166,24 @@ if __name__ == '__main__':
         # get weighted average for global weights
         for i in range(len(w_glob)):
             w_glob[i] = torch.div(w_glob[i], total_len)
+        # print(w_glob)
         if iter % args.round == args.round-1:
             for i in range(args.num_users):
-
                 if len(apprs[i].pre_weight['aw']) < task+1:
                     print("client " + str(i) + " not train")
-
                     train_dataloaders, test_dataloaders, _ = dataloader.get_dataloader(task)
-
-                    apprs[i].set_sw(w_agg)
+                    apprs[i].set_sw(w_glob)
                     apprs[i].set_trData(train_dataloaders[i])
-                    LongLifeTrain(args, server_model,apprs[i], iter, from_kb, i)
-
+                    # LongLifeTrain(args, server_model,apprs[i], iter, from_kb, i) # I don't know why there still train
             if times == []:
                 times.append(max(times_in))
             else:
                 times.append(times[-1] + max(times_in))
-            acc_test, loss_test = test_img_local_all_WEIT(server_model,apprs, args, dataloader,task,
-                                                     w_glob_keys=w_glob_keys, w_locals=w_locals, indd=indd,
-                                                     dataset_train=None, dict_users_train=None,
-                                                     return_all=False,write=write,num_classes=args.num_classes,device=args.device)
-            accs.append(acc_test)
+            print('task ' + str(task) + ' finish train')
+            with torch.no_grad():
+                acc_test, total_num = test_img_local_all_WEIT(server_model,apprs, args, test_dataloaders,device=args.device)
             # for algs which learn a single global model, these are the local accuracies (computed using the locally updated versions of the global model at the end of each round)
-            if iter != args.epochs:
-                print('Round {:3d}, Train loss: {:.3f}, Test loss: {:.3f}, Test accuracy: {:.2f}'.format(
-                    iter, loss_avg, loss_test, acc_test))
-            else:
-                # in the final round, we sample all users, and for the algs which learn a single global model, we fine-tune the head for 10 local epochs for fair comparison with FedRep
-                print('Final Round, Train loss: {:.3f}, Test loss: {:.3f}, Test accuracy: {:.2f}'.format(
-                    loss_avg, loss_test, acc_test))
-            if iter >= args.epochs - 10 and iter != args.epochs:
-                accs10 += acc_test / 10
-
-            if iter >= args.epochs - 10 and iter != args.epochs:
-                accs10_glob += acc_test / 10
-
+            print('Round {:3d}, task {},Test accuracy: {}'.format(iter, task, acc_test/total_num))
 
     # print('Average accuracy final 10 rounds: {}'.format(accs10))
     # if args.alg == 'fedavg' or args.alg == 'prox':

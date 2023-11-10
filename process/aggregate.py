@@ -24,6 +24,9 @@ def cluster(clients: List[Client], num_experts:int, **kwargs):
     for i, label in enumerate(cluster_labels):
         clustered_data[label].append(i)
         clients[i].assign = label
+        temp_list = [0]*num_experts
+        temp_list[clients[i].assign] = 1
+        clients[i].count_dict = [i/sum(temp_list) for i in temp_list]
     print(clustered_data)
     return clustered_data
     
@@ -38,7 +41,8 @@ def fetch(clip_model: ClipModelMA, dataloader, client:Client,device, **kwargs):
     clip_model.MoE.eval()
     total = 0
     total_var = 0
-    count_dict = {i:0 for i in range(clip_model.n_experts)}
+    # count_dict = {i:0 for i in range(clip_model.n_experts)}
+    count_dict = [0]*clip_model.n_experts
     for image, _, _ in dataloader:
         image = image.to(device)
         _ = clip_model.model.encode_image(image).float() # just for the hook work
@@ -54,9 +58,10 @@ def fetch(clip_model: ClipModelMA, dataloader, client:Client,device, **kwargs):
         total_var += torch.sum(torch.var(logits, axis=1)).item()
         for i in logits:
             count_dict[torch.argmax(i).item()] += 1
-    most_index = max(count_dict, key=count_dict.get)
+    client.count_dict = [i/sum(count_dict) for i in count_dict]
+    most_index = max(enumerate(count_dict), key=lambda x:x[1])
     # print(most_index)
-    return most_index
+    return most_index[0]
     
 def communicate(clip_model: ClipModelMA, clients: List[Client], device):
     # cluster_data = cluster(clients, clip_model.n_experts)
@@ -75,36 +80,4 @@ def communicate(clip_model: ClipModelMA, clients: List[Client], device):
             global_param.data /= len(cluster_clients)  # Average the parameters
         clip_model.MoE.experts[index] = global_adapters
     train_server(clip_model, clients, device)
-    
-    
-
-        
-
-    
-
-# def communicate(clip_model: ClipModelMA, new_adapter: Adapter, dataloader, device):
-#     model_client_labels = [i.label for i in clip_model.MoE.experts] # get label from the expert model
-#     if "origin" in model_client_labels: # replace the untrained original expert
-#         for index, label in enumerate(model_client_labels):
-#             if label == "origin":
-#                 del(clip_model.MoE.experts[index])
-#                 clip_model.MoE.experts.insert(index, new_adapter)
-#                 replace_client_index = index
-#                 break
-#     else:
-#         least_client = math.inf
-#         replace_client_index = 0
-#         print(model_client_labels)
-#         model_client_labels = [label_parser(i) for i in model_client_labels] # replace the most old model
-        
-#         for index, label in enumerate(model_client_labels):
-#             replace_client_index = index if label < least_client else replace_client_index
-#             least_client = min(least_client, label)
-#         del(clip_model.MoE.experts[replace_client_index])
-#         clip_model.MoE.experts.insert(replace_client_index, new_adapter)
-#     train_server(clip_model, dataloader, replace_client_index, device)
-        
-
-
-
     

@@ -8,6 +8,8 @@ import torch
 from typing import List
 import itertools
 from torch.utils.data import TensorDataset, DataLoader
+from torch.nn import Softmax
+
 def add_laplace_noise(vector, sensitivity=0.1, epsilon=10, device=None):
     b = sensitivity / epsilon
     noise = np.random.laplace(scale=b, size=vector.shape)    
@@ -21,28 +23,34 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], device):
     clip_model.MoE.experts.eval()
 
     temp_data = torch.tensor(np.stack([i.preprocess() for i in clients]).reshape(-1, 768), dtype=torch.float)
-    temp_label_data = torch.tensor(list(itertools.chain.from_iterable([[i.assign]*len(i.preprocess()) for i in clients])), dtype=torch.long)
-    print(temp_data.shape, temp_label_data.shape)
+    # temp_label_data = torch.tensor(list(itertools.chain.from_iterable([[i.count_dict]*len(i.preprocess()) for i in clients])), dtype=torch.long)
+    temp_label_data = torch.tensor(list(itertools.chain.from_iterable([[i.count_dict]*len(i.preprocess()) for i in clients])), dtype=torch.float)
+
+    # temp_label_data = torch.tensor([[]])
+    # print(temp_data.shape, temp_label_data.shape)
     dataset = TensorDataset(temp_data, temp_label_data)
     dataloader = DataLoader(dataset=dataset, batch_size=100, shuffle=True)
 
+    softmax = Softmax(-1)
     logging.info(f"Server start to train MoE !")
     for epoch in tqdm(range(5)):
         for batch in dataloader:
             data, label = batch
+            # print(label)
 
-            data = data.to(device)
+            data, label = data.to(device), label.to(device)
             data = add_laplace_noise(data, device=device)
             _ , loss_gate, logits = clip_model.MoE(data, train_gate=True)
             
 
-            one_hot_label = torch.ones_like(logits, device=device)*0.2
-            one_hot_label[:, label] = 1
+            # one_hot_label = torch.ones_like(logits, device=device)*0.2
+            # one_hot_label[:, label] = 1
 
             loss_label = binary_cross_entropy_with_logits(
-                logits, one_hot_label) 
+                logits, softmax(label)) 
 
-            loss = loss_gate + loss_label
+            loss =  2*loss_gate + loss_label
+            print(f"the loss of gate:{loss_gate.item()}, the loss of label {loss_label.item()}")
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
