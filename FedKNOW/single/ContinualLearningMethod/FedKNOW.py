@@ -11,21 +11,10 @@ import torch.nn.functional as F
 import torch.nn as nn
 from collections import OrderedDict
 import itertools
-from torch.utils.data import TensorDataset
+from torch.utils.data import TensorDataset, DataLoader
 import utils.cliputils as clu
 
-def compute_offsets(task, nc_per_task, is_cifar=False):
-    """
-        Compute offsets for cifar to determine which
-        outputs to select for a given task.
-    """
-    if is_cifar:
-        offset1 = task * nc_per_task
-        offset2 = (task + 1) * nc_per_task
-    else:
-        offset1 = 0
-        offset2 = nc_per_task
-    return offset1, offset2
+
 
 def overwrite_grad(pp, newgrad, grad_dims):
     """
@@ -97,7 +86,7 @@ def project2cone2(gradient, memories,memory, margin=0.5, eps=1e-3):
             gradient.copy_(torch.Tensor(x).view(-1, 1))
         except ValueError:
             gradient.copy_(torch.Tensor(gradient_np).view(-1, 1))
-def MultiClassCrossEntropy(logits, labels, t,T=2):
+def MultiClassCrossEntropy(logits, labels, t=None,T=2):
     # Ld = -1/N * sum(N) sum(C) softmax(label) * log(softmax(logit))
     outputs = torch.log_softmax(logits / T, dim=1)  # compute the log of softmax values
     label = torch.softmax(labels / T, dim=1)
@@ -136,7 +125,8 @@ class Appr(object):
         self.optimizer = self._get_optimizer()
         self.pack_optimizer = self._get_optimizer(packmodel)
         self.lamb = args.lamb
-        self.e_rep = args.local_local_ep
+        # self.e_rep = args.local_local_ep
+        self.e_rep = 1
         self.old_task=-1
         self.grad_dims = []
         self.num_classes = args.num_classes # 不确定
@@ -267,7 +257,7 @@ class Appr(object):
             mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
             _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
             text_features = clip_model._get_text_features(_mean_domain_features.half())
-
+            image_features = clip_model.model.encode_image(images).half()
             image_features = image_features / image_features.norm(dim=1, keepdim=True)
             text_features = text_features / text_features.norm(dim=1, keepdim=True)
 
@@ -293,22 +283,31 @@ class Appr(object):
             images, labels = images.to(self.device), labels.to(self.device)
             # Forward current model
 
-            pre_image_features = clip_model.model.encode_image(images).float()
-
+            pre_image_features = clip_model.model.encode_image(images).half()
+            # old model label
             pre_domain_feature = self.model_old(list_image_domain_features[index][0].to(self.device))
             pre_mean_domain_feature = pre_domain_feature.mean(dim=0, keepdim=True)
             _pre_mean_domain_features = pre_mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
             pre_text_features = clip_model._get_text_features(_pre_mean_domain_features.half())
 
-            pre_image_features = pre_image_features / pre_text_features.norm(dim=1, keepdim=True)
+            pre_image_features = pre_image_features / pre_image_features.norm(dim=1, keepdim=True)
             pre_text_features = pre_text_features / pre_text_features.norm(dim=1, keepdim=True)
             pre_logit_scale = clip_model.model.logit_scale.exp()
             pre_logits_per_image = pre_logit_scale * pre_image_features @ pre_text_features.t()
+            # cur model label
+            cur_domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
+            cur_mean_domain_feature = cur_domain_feature.mean(dim=0, keepdim=True)
+            _cur_mean_domain_features = cur_mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+            cur_text_features = clip_model._get_text_features(_cur_mean_domain_features.half())
+
+            cur_text_features = cur_text_features / cur_text_features.norm(dim=1, keepdim=True)
+            cur_logits_per_image = pre_logit_scale * pre_image_features @ cur_text_features.t()
+            
             # self.model.zero_grad()
             self.optimizer.zero_grad()
             self.model.zero_grad()
             clip_model.model.zero_grad()
-            memoryloss = F.cross_entropy(pre_logits_per_image, labels)
+            memoryloss = MultiClassCrossEntropy(pre_logits_per_image, cur_logits_per_image)
             memoryloss.backward()
             self.optimizer.step()
 
@@ -316,17 +315,16 @@ class Appr(object):
             self.model.zero_grad()
             clip_model.model.zero_grad()
             # store_grad(self.model.parameters,grads, self.grad_dims,0)
-            # image_features = clip_model.model.encode_image(images).float()
-            domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
-            mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
-            _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
-            text_features = clip_model._get_text_features(_mean_domain_features.half())
-            text_features = text_features / text_features.norm(dim=1, keepdim=True)
+            # image_features = clip_model.model.encode_image(images).half()
+            cur_domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
+            cur_mean_domain_feature = cur_domain_feature.mean(dim=0, keepdim=True)
+            _cur_mean_domain_features = cur_mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+            cur_text_features = clip_model._get_text_features(_cur_mean_domain_features.half())
 
-            logit_scale = clip_model.model.logit_scale.exp()
-            logits_per_image = logit_scale * pre_image_features @ text_features.t()
-            
-            loss = F.cross_entropy(logits_per_image, labels)
+            cur_text_features = cur_text_features / cur_text_features.norm(dim=1, keepdim=True)
+            cur_logits_per_image = pre_logit_scale * pre_image_features @ cur_text_features.t()
+
+            loss = F.cross_entropy(cur_logits_per_image, labels)
 
             ## 根据这个损失计算梯度，变换此梯度
 
@@ -340,6 +338,7 @@ class Appr(object):
         clip_model.model.train()
         self.packmodel.train()
         clip_model.model.eval()
+        self.model_old.eval()
 
         client_domain_feature = torch.tensor(self.preprocess(), dtype=torch.float)
         list_image_domain_features = list(DataLoader(TensorDataset(client_domain_feature),batch_size=50, shuffle=False))
@@ -347,7 +346,7 @@ class Appr(object):
         # Loop batches
         for index, batch in enumerate(self.tr_dataloader):
             # Forward current model
-            images, labels = batch
+            images, _, labels = batch
             images, labels = images.to(self.device), labels.to(self.device) 
  
             self.optimizer.zero_grad()
@@ -356,21 +355,27 @@ class Appr(object):
             grads = torch.Tensor(sum(self.grad_dims), 2+t)
             grads = grads.to(self.device)
             if t > 0:
-                pre_image_features = clip_model.model.encode_image(images).float()
+                pre_image_features = clip_model.model.encode_image(images).half()
                 
-                domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
-                mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
-                _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
-                pre_text_features = clip_model._get_text_features(_mean_domain_features.half())
+                pre_domain_feature = self.model_old(list_image_domain_features[index][0].to(self.device))
+                pre_mean_domain_feature = pre_domain_feature.mean(dim=0, keepdim=True)
+                _pre_mean_domain_features = pre_mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+                pre_text_features = clip_model._get_text_features(_pre_mean_domain_features.half())
+
+                cur_domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
+                cur_mean_domain_feature = cur_domain_feature.mean(dim=0, keepdim=True)
+                _cur_mean_domain_features = cur_mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+                cur_text_features = clip_model._get_text_features(_cur_mean_domain_features.half())
 
 
-                pre_image_features = pre_image_features / pre_text_features.norm(dim=1, keepdim=True)
+                pre_image_features = pre_image_features / pre_image_features.norm(dim=1, keepdim=True)
                 pre_text_features = pre_text_features / pre_text_features.norm(dim=1, keepdim=True)
+                cur_text_features = cur_text_features / cur_text_features.norm(dim=1, keepdim=True)
                 
                 pre_logit_scale = clip_model.model.logit_scale.exp()
                 pre_logits_per_image = pre_logit_scale * pre_image_features @ pre_text_features.t()
-                
-                pre_loss = F.cross_entropy(logits_per_image, labels)
+                cur_logits_per_image = pre_logit_scale * pre_image_features @ cur_text_features.t()
+                pre_loss =MultiClassCrossEntropy(pre_logits_per_image, cur_logits_per_image)
 
                 pre_loss.backward()
                 store_grad(self.model.feature_net.parameters, grads, self.grad_dims, 0)
@@ -384,26 +389,36 @@ class Appr(object):
                     temppackmodel = deepcopy(oldpackmodel).to(self.device)
                     temppackmodel.train()
                     self.pack.apply_eval_mask(task_idx=i, model=temppackmodel.feature_net)
-                    pre_image_features = clip_model.model.encode_image(images).float()
-                    with torch.no_grad():
-                        
-                        domain_feature = temppackmodel(list_image_domain_features[index][0].to(self.device))
-                        mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
-                        _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
-                        pre_text_features = clip_model._get_text_features(_mean_domain_features.half())
+                    # pre_image_features = clip_model.model.encode_image(images).half()
+                    pre_domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
+                    pre_mean_domain_feature = pre_domain_feature.mean(dim=0, keepdim=True)
+                    _pre_mean_domain_features = pre_mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+                    pre_text_features = clip_model._get_text_features(_pre_mean_domain_features.half())
 
-                        pre_image_features = pre_image_features / pre_text_features.norm(dim=1, keepdim=True)
-                        pre_text_features = pre_text_features / pre_text_features.norm(dim=1, keepdim=True)
+
+                    with torch.no_grad():
+                        pre_image_features = clip_model.model.encode_image(images).half()
+
+                        temp_domain_feature = temppackmodel(list_image_domain_features[index][0].to(self.device))
+                        temp_mean_domain_feature = temp_domain_feature.mean(dim=0, keepdim=True)
+                        _temp_mean_domain_features = temp_mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+                        temp_text_features = clip_model._get_text_features(_temp_mean_domain_features.half())
+
+                        pre_image_features = pre_image_features / pre_image_features.norm(dim=1, keepdim=True)
+                        temp_text_features = temp_text_features / temp_text_features.norm(dim=1, keepdim=True)
                         pre_logit_scale = clip_model.model.logit_scale.exp()
-                        pre_logits_per_image = pre_logit_scale * pre_image_features @ pre_text_features.t()
-                
-                    memoryloss = F.cross_entropy(pre_logits_per_image, labels)
+                        temp_logits_per_image = pre_logit_scale * pre_image_features @ temp_text_features.t()
+                    pre_text_features = pre_text_features / pre_text_features.norm(dim=1, keepdim=True)
+                    pre_logits_per_image = pre_logit_scale * pre_image_features @ pre_text_features.t()
+                    
+                    memoryloss = MultiClassCrossEntropy(pre_logits_per_image, temp_logits_per_image)
                     memoryloss.backward()
                     store_grad(self.model.feature_net.parameters, grads, self.grad_dims, i+1)
                     del temppackmodel
                 ## 求出每个分类器算出来的梯度
 
-            image_features = clip_model.model.encode_image(images).float()
+            image_features = clip_model.model.encode_image(images).half()
+
             domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
             mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
             _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
@@ -462,7 +477,7 @@ class Appr(object):
                 image, _, label = batch
                 image, label = image.to(self.device), label.to(self.device)
                 # Forward
-                image_features = clip_model.model.encode_image(image).float()
+                image_features = clip_model.model.encode_image(image).half()
                 
                 domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
                 mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
@@ -491,8 +506,8 @@ class Appr(object):
 
 def LongLifeTrain(args, clip_model, appr: Appr, aggNum, from_kb, idx):
     print('cur round :' + str(aggNum)+'  cur client:' + str(idx))
-    # acc = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
-    # lss = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
+    # acc = np.zeros((len(taskcla), len(taskcla)), dtype=np.half32)
+    # lss = np.zeros((len(taskcla), len(taskcla)), dtype=np.half32)
     t = aggNum // args.round
     print('cur task:' + str(t))
     r = aggNum % args.round
@@ -511,8 +526,6 @@ def LongLifeTrain(args, clip_model, appr: Appr, aggNum, from_kb, idx):
     return appr.model.state_dict(),fisher,acc,0
 
 def LongLifeTest(args, appr, t, testdatas, aggNum, writer):
-    acc = np.zeros((1, t), dtype=np.float32)
-    lss = np.zeros((1, t), dtype=np.float32)
     t = aggNum // args.round
     r = aggNum % args.round
     # for u in range(t + 1):

@@ -8,10 +8,8 @@ from torch.utils.tensorboard import SummaryWriter
 from utils.options import args_parser
 # from utils.train_utils import get_data, get_model
 from models.Nets import KNOWAdapter
-from models.Update import DatasetSplit
 from models.test import test_img_local_all_KNOW
 from single.ContinualLearningMethod.FedKNOW import Appr,LongLifeTrain
-from torch.utils.data import DataLoader
 import time
 from models.Packnet import PackNet
 from models.clip import FedKNOWClip
@@ -58,7 +56,7 @@ if __name__ == '__main__':
     total_num_layers = len(net_glob.state_dict().keys())
     print(net_glob.state_dict().keys())
     net_keys = [*net_glob.state_dict().keys()] # adapter内的参数
-
+    w_glob_keys = []
     # 改到这里存疑
     # specify the representation parameters (in w_glob_keys) and head parameters (all others)
     w_glob_keys = [net_glob.weight_keys[i] for i in [j for j in range(len(net_glob.weight_keys))]]
@@ -194,7 +192,8 @@ if __name__ == '__main__':
             else:
                 times.append(times[-1] + max(times_in))
             print('task ' + str(task) + ' finish train')
-            acc_test, total_num = test_img_local_all_KNOW(server_model, apprs, args, test_dataloaders, device=args.device)
+            with torch.no_grad():
+                acc_test, total_num = test_img_local_all_KNOW(server_model, apprs, args, test_dataloaders, device=args.device)
             accs.append(acc_test)
             # for algs which learn a single global model, these are the local accuracies (computed using the locally updated versions of the global model at the end of each round)
             print('Round {:3d}, task {},Test accuracy: {}'.format(iter, task, acc_test/total_num))
@@ -205,7 +204,7 @@ if __name__ == '__main__':
     print(accs)
     base_dir = './save/FedKNOW/accs_FedKNOW_lambda_' + str(args.lamb) + str(
         '_') + args.alg + '_' + args.dataset + '_' + str(args.num_users) + '_' + str(
-        args.shard_per_user) + '_iterFinal' + '_frac_' + str(args.frac) + '_model_' + args.model + '.csv'
+        args.shard_per_user) + '_iterFinal' + '_frac_' + str(args.frac) + '_model_' + args.net + '.csv'
     user_save_path = base_dir
     accs = np.array(accs)
     accs = pd.DataFrame(accs, columns=['accs'])

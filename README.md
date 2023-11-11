@@ -29,8 +29,10 @@ MoE + CLIP + Continual Learning 代码完成并尝试训练。
 > python fed_at_clip.py --dataset officehome --root_dir /mnt/sda/zd/data/splitdata/  --batch 100  --logdir t2.log
 
 运行FedWeIT:
-> python main_WEIT.py --alg=WEIT --dataset=officehome --net=ViT-B/16 --root_dir=/mnt/sda/zd/data/splitdata  --num_users=10  --frac=0.1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=4   --local_ep=1  --gpu=1 --batch 100
+> nohup python FedKNOW/main_WEIT.py --alg=WEIT --dataset=officehome --net=ViT-B/16 --root_dir=/mnt/sda/zd/data/OF10-10-1000-2023 --num_users=10 --frac=1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=4 --epoch=4 --round=1  --local_ep=10  --gpu=1 --batch 50 &
 
+运行FedKNOW:
+>  nohup python FedKNOW/main_FedKNOW.py --alg fedKNOW  --dataset=officehome --net=ViT-B/16 --root_dir=/mnt/sda/zd/data/OF10-10-1000-2023 --num_users=10 --frac=1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=4 --epoch=4 --round=1  --local_ep=10  --gpu=2 --batch 50 > FedKNOW.out 2>&1 &
 大致流程：
 - 初始启动时，基于每个客户端的特征进行聚类得到五个类别experts
 - 对每个客户端进行训练之后根据所属的experts进行fedavg

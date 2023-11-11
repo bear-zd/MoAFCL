@@ -71,6 +71,7 @@ def test_img_local(clip_model,net_g, test_dataloader,server_data, device=None):
     clip_model.model.eval()
     net_g.to(device)
     net_g.eval()
+    
     correct = 0
     total = 0
     # _,data_loader,_ = dataloader.get_dataloader(t)
@@ -116,13 +117,12 @@ def test_img_local_all_WEIT(clip_model,appr, args, test_dataloader,device=None):
     all_task_correct = 0
     all_total_num = 0
     for domain_dataloader in test_dataloader:
-        # print(torch.cuda.memory_allocated(device))
+        
         temp_hook = clip_model.model.visual.transformer.resblocks[0].register_forward_hook(server_data.extract_feature())
         for image, _, _ in domain_dataloader:
             image = image.to(args.device)
             _ = clip_model.model.encode_image(image).float() # just for the hook work
         temp_hook.remove()
-        # print(torch.cuda.memory_allocated(device))
         torch.cuda.empty_cache()
         num_correct, total = test_img_local(clip_model,net_local,domain_dataloader,server_data , device=device)
         all_task_correct += num_correct
@@ -140,9 +140,7 @@ def test_img_local_all_WEIT(clip_model,appr, args, test_dataloader,device=None):
     # return sum(acc_test_local) / num_idxxs, sum(loss_test_local) / num_idxxs, num_idxxs
 
 
-def test_img_local_all_KNOW(clip_model, appr, args, test_dataloaders, t, w_locals=None, w_glob_keys=None, indd=None,
-                            dataset_train=None, dict_users_train=None, return_all=False, write=None, num_classes=10,
-                            device=None):
+def test_img_local_all_KNOW(clip_model, appr, args, test_dataloaders,device=None):
     print('test begin' + '*' * 100)
     
     server_data = Client(args.net,args.device)
@@ -152,6 +150,7 @@ def test_img_local_all_KNOW(clip_model, appr, args, test_dataloaders, t, w_local
     all_total_num = 0
     # variable should be re-implement dict_users_test
     for domain_dataloader in test_dataloaders:
+        # print(torch.cuda.memory_allocated(device))
         temp_hook = clip_model.model.visual.transformer.resblocks[0].register_forward_hook(server_data.extract_feature())
         for image, _, _ in domain_dataloader:
             image = image.to(args.device)

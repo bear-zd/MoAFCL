@@ -31,8 +31,9 @@ class KNOWAdapter(nn.Module):
         hidden_size = ADAPTER_PARAMETER[base_model]['hidden_size']
         self.feature_net = nn.Linear(input_size, hidden_size)
         self.dropout = nn.Dropout(0.1)
-        self.last = nn.Linear(hidden_size, output_size)
+        self.last = nn.Linear(hidden_size, 8*output_size)
         self.softmax = nn.Softmax(1)
+        self.weight_keys = [['feature_net.fc1.weight'], ['feature_net.fc1.bias'], ['last.weight'], ['last.bias']]
 
     def forward(self, x):
         m = self.feature_net(x)

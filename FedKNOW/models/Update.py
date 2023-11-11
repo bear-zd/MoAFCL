@@ -13,7 +13,7 @@ import math
 import numpy as np
 import time
 import copy
-import FedProx
+
 
 from torchvision import transforms
 class DatasetSplit(Dataset):

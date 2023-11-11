@@ -5,7 +5,6 @@ import torch.nn as nn
 import clip
 from utils.cliputils import freeze_param
 import copy
-from model.moe import MoE 
 import torch
 from .layer import DecomposedLinear
 ADAPTER_PARAMETER = {"ViT-B/16":{"image_feature":512, "hidden_size":512, "output_feature":512},
@@ -101,6 +100,7 @@ class FedWeITClip(ClipModel):
         x = self.model.transformer(x)
         x = x.permute(1, 0, 2)
         x = self.model.ln_final(x).type(self.model.dtype)
+        
         
         #  mapping domain_features to text_features.
         text_features = x[torch.arange(x.shape[0]), self.tokenized_prompts.argmax(dim=-1)] @ self.model.text_projection      

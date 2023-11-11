@@ -259,8 +259,6 @@ class Appr(object):
                 _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
                 text_features = clip_model._get_text_features(_mean_domain_features.half())
 
-                
-
                 image_features = clip_model.model.encode_image(image).half()
                 # image_features_att = self.model(image_features)
                 # image_features = torch.mul(
