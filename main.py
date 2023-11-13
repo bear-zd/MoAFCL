@@ -68,16 +68,19 @@ def main():
             
         else:
             logging.info(f"{task} round start fetch!")
-            for client in range(args.n_clients):
+            for client in tqdm(range(args.n_clients)):
                 clients_data[client].feature_data = []
                 temp_hook = server_model.model.visual.transformer.resblocks[args.extract_layer].register_forward_hook(clients_data[client].extract_feature())
                 clients_data[client].assign = fetch(server_model, train_loaders[client], clients_data[client],args.device)
                 temp_hook.remove()
-        
+                acc_list = []
                 # clients_data[client].feature_data = []
                 clients_data[client].adapter = copy.deepcopy((server_model.MoE.experts[clients_data[client].assign]))
                 # temp_hook = server_model.model.visual.transformer.resblocks[0].register_forward_hook(clients_data[client].extract_feature())
-                train_client(server_model, clients_data[client], train_loaders[client], args.device, args)
+                for i in range(args.inner_iter):
+                    train_client(server_model, clients_data[client], train_loaders[client], args.device, args)
+                    acc_list.append(test_client(server_model,  clients_data[client], train_loaders[client], args.device))
+                logging.info(f'task {task} - client {client} - acc_list{acc_list}')
                 # temp_hook.remove()
 
         communicate(server_model, clients_data, args.device)

@@ -17,9 +17,17 @@ from single.ContinualLearningMethod.WEIT import Appr,LongLifeTrain
 from models.Nets import  WeITAdapter
 from utils.dataload import DomainDataset, get_data
 from models.clip import FedWeITClip
-
+import random
 import time
+def set_random_seed(seed=2023):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 def img_param_init(args):
+    set_random_seed(2023)
     dataset = args.dataset
     if dataset == 'pacs':
         domains = ['art_painting', 'cartoon', 'photo', 'sketch']
@@ -27,11 +35,17 @@ def img_param_init(args):
     elif dataset == 'officehome':
         domains = ['Art', 'Clipart', 'Product', 'Real World']
         args.numclasses = 65
-    else :
+    elif dataset == 'domainnet':
+        domains = ['clipart','infograph','painting','quickdraw','real','sketch']
+        args.numclasses = 345
+    elif dataset == 'domainnetsub':
+        domains = ['clipart','infograph','painting','quickdraw','real','sketch']
+        args.numclasses = 100
+    else:
         raise BaseException(f"{dataset} dataset not defined!")
     args.wd = 1e-4
     args.lambda_l1 = 1e-3
-    args.lambda_l2 = 1
+    args.lambda_l2 = 1 
     args.lambda_mask = 0
     args.device = torch.device('cuda:{}'.format(args.gpu) if torch.cuda.is_available() and args.gpu != -1 else 'cpu')
     args.domains = domains

@@ -7,6 +7,20 @@ from tqdm import tqdm
 random.seed(2023)
 
 
+
+SELECTED_CLASS = [ "tree","golf_club","squirrel","dog","whale","spreadsheet","snowman","tiger","table","shoe","windmill","submarine","truck","feather","bird","spider","strawberry","nail","beard","bread","train","watermelon","zebra","sheep","elephant","teapot","eye","mushroom","sea_turtle","sword","streetlight","lighthouse","bridge","owl","horse","penguin","pond","sock","snorkel","helicopter","snake","butterfly","umbrella","river","fish","van","grapes","hot_air_balloon","wine_glass","teddy-bear","speedboat","sun","swan","bicycle","brain","bracelet","tornado","flower","stairs","cup","steak","vase","tractor","wristwatch","stethoscope","suitcase","triangle","parrot","zigzag","ice_cream","mug","beach","cat","raccoon","garden","monkey","shark","animal_migration","lion","saxophone","asparagus","tent","firetruck","The_Eiffel_Tower","hand","spoon","squiggle","palm_tree","octopus","toaster","skateboard","dumbbell","headphones","mountain","bottlecap","hexagon","pig","toilet","washing_machine","frog"]
+
+
+def subset():
+    inputdir = '/mnt/sda/zd/data/DomainNet'
+    outputdir = '/mnt/sda/zd/data/subDN'
+    for root, dirs, files in os.walk(inputdir):
+        for dir in dirs:
+            if dir in SELECTED_CLASS:
+                src_dir = os.path.join(root, dir)
+                dst_dir = src_dir.replace(inputdir, outputdir)
+                shutil.copytree(src_dir, dst_dir)
+
 def datacollect(dir:str) -> List["str"]:
     collect = []
     for i in os.listdir(dir):
@@ -116,7 +130,7 @@ def final_splitdata(indir:str,outdir:str, sample_strategy:strategy=None) :
     
     for domain in sample_strategy.domains:
         # domain_data[domain] = datacollect(osp.join(indir, domain))
-        percentage = 0.2
+        percentage = 0.025
         num_elements = int(len(domain_data_collection[domain]) * percentage)
         subset = random.sample(domain_data_collection[domain], num_elements)
         for path in subset:
@@ -148,9 +162,9 @@ def final_splitdata(indir:str,outdir:str, sample_strategy:strategy=None) :
 
 
 if __name__ == "__main__":
-    INDIR = "/mnt/sda/zd/data/officehome"
-    OUTDIR = '/mnt/sda/zd/data/OF10-10-2000-2023'
-    sample_strategy = single_strategy(os.listdir(INDIR), 10, 10, 2000,seq=True)
+    INDIR = "/mnt/sda/zd/data/subDN"
+    OUTDIR = '/mnt/sda/zd/data/DN20-10-2000-2023'
+    sample_strategy = single_strategy(os.listdir(INDIR), 20, 10, 2000,seq=True)
     final_splitdata(INDIR, OUTDIR, sample_strategy)
 
 

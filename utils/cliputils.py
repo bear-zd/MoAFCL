@@ -11,6 +11,10 @@ def freeze_param(model):
     for name, param in model.named_parameters():
         param.requires_grad = False
 
+def unfreeze_param(model):
+    for name, param in model.named_parameters():
+        param.requires_grad = True
+
 
 def get_text_features_list(texts, model, device):
     with torch.no_grad():

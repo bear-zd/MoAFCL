@@ -9,6 +9,7 @@ from typing import List
 import itertools
 from torch.utils.data import TensorDataset, DataLoader
 from torch.nn import Softmax
+from utils.cliputils import freeze_param, unfreeze_param
 
 def add_laplace_noise(vector, sensitivity=0.1, epsilon=10, device=None):
     b = sensitivity / epsilon
@@ -18,9 +19,14 @@ def add_laplace_noise(vector, sensitivity=0.1, epsilon=10, device=None):
 
 def train_server(clip_model: ClipModelMA, clients: List[Client], device):
     clip_model.MoE = clip_model.MoE.to(device)
-    optimizer = optim.SGD(clip_model.MoE.gating.parameters(), lr=0.001, momentum=0.9)
+
+    optimizer = optim.SGD(clip_model.MoE.gating.parameters(), lr=01.5)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [200,400], gamma=0.5)
     clip_model.MoE.train()
+    freeze_param(clip_model.MoE.experts)
     clip_model.MoE.experts.eval()
+
+    
 
     temp_data = torch.tensor(np.stack([i.preprocess() for i in clients]).reshape(-1, 768), dtype=torch.float)
     # temp_label_data = torch.tensor(list(itertools.chain.from_iterable([[i.count_dict]*len(i.preprocess()) for i in clients])), dtype=torch.long)
@@ -30,16 +36,17 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], device):
     # print(temp_data.shape, temp_label_data.shape)
     dataset = TensorDataset(temp_data, temp_label_data)
     dataloader = DataLoader(dataset=dataset, batch_size=100, shuffle=True)
-
+    correct = 0
+    all = 0
     softmax = Softmax(-1)
     logging.info(f"Server start to train MoE !")
-    for epoch in tqdm(range(5)):
+    for epoch in range(500):
         for batch in dataloader:
             data, label = batch
             # print(label)
 
             data, label = data.to(device), label.to(device)
-            data = add_laplace_noise(data, device=device)
+            # data = add_laplace_noise(data, device=device)
             _ , loss_gate, logits = clip_model.MoE(data, train_gate=True)
             
 
@@ -47,13 +54,24 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], device):
             # one_hot_label[:, label] = 1
 
             loss_label = binary_cross_entropy_with_logits(
-                logits, softmax(label)) 
+                logits, label) 
 
             loss =  2*loss_gate + loss_label
-            print(f"the loss of gate:{loss_gate.item()}, the loss of label {loss_label.item()}")
+            # print(f"the loss of gate:{loss_gate.item()}, the loss of label {loss_label.item()}")
+
+            all += len(data)
+            pred = torch.argmax(logits, -1).detach()
+            real = torch.argmax(label, -1).detach()
+            res = torch.cat([pred.view(-1, 1), real.view(-1, 1)], dim=1)
+            res = res.cpu().numpy()
+            
+            correct += np.sum(np.array(res)[:, 0] == np.array(res)[:, 1])
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+        if (epoch+1)%100 == 0:
+            print(f"epoch {epoch} the trainning set MoE acc : {correct/all}")
+    unfreeze_param(clip_model.MoE.experts)
 
 
 

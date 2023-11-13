@@ -14,8 +14,16 @@ import time
 from models.Packnet import PackNet
 from models.clip import FedKNOWClip
 from utils.dataload import DomainDataset, get_data
-
+import random
+def set_random_seed(seed=2023):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 def img_param_init(args):
+    set_random_seed(2023)
     dataset = args.dataset
     if dataset == 'pacs':
         domains = ['art_painting', 'cartoon', 'photo', 'sketch']
@@ -23,7 +31,13 @@ def img_param_init(args):
     elif dataset == 'officehome':
         domains = ['Art', 'Clipart', 'Product', 'Real World']
         args.numclasses = 65
-    else :
+    elif dataset == 'domainnet':
+        domains = ['clipart','infograph','painting','quickdraw','real','sketch']
+        args.numclasses = 345
+    elif dataset == 'domainnetsub':
+        domains = ['clipart','infograph','painting','quickdraw','real','sketch']
+        args.numclasses = 100
+    else:
         raise BaseException(f"{dataset} dataset not defined!")
     args.wd = 1e-4
     args.lambda_l1 = 1e-3
