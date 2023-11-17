@@ -130,7 +130,7 @@ def final_splitdata(indir:str,outdir:str, sample_strategy:strategy=None) :
     
     for domain in sample_strategy.domains:
         # domain_data[domain] = datacollect(osp.join(indir, domain))
-        percentage = 0.025
+        percentage = 0.1
         num_elements = int(len(domain_data_collection[domain]) * percentage)
         subset = random.sample(domain_data_collection[domain], num_elements)
         for path in subset:
@@ -162,9 +162,9 @@ def final_splitdata(indir:str,outdir:str, sample_strategy:strategy=None) :
 
 
 if __name__ == "__main__":
-    INDIR = "/mnt/sda/zd/data/subDN"
-    OUTDIR = '/mnt/sda/zd/data/DN20-10-2000-2023'
-    sample_strategy = single_strategy(os.listdir(INDIR), 20, 10, 2000,seq=True)
+    INDIR = "/mnt/sda/zd/data/Adaptiope"
+    OUTDIR = '/mnt/sda/zd/data/AD10-10-1000-2023'
+    sample_strategy = single_strategy(os.listdir(INDIR), 10, 10, 1000,seq=True)
     final_splitdata(INDIR, OUTDIR, sample_strategy)
 
 

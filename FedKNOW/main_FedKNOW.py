@@ -37,6 +37,9 @@ def img_param_init(args):
     elif dataset == 'domainnetsub':
         domains = ['clipart','infograph','painting','quickdraw','real','sketch']
         args.numclasses = 100
+    elif dataset == 'adaptiope':
+        domains = ['synthetic', 'real_life', 'product_images']
+        args.numclasses = 123
     else:
         raise BaseException(f"{dataset} dataset not defined!")
     args.wd = 1e-4

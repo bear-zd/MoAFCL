@@ -141,11 +141,11 @@ class MoE(nn.Module):
         self.k = k
         # instantiate experts
         self.experts = nn.ModuleList([copy.deepcopy(expert_model) for i in range(self.num_experts)])
-        self.gating = nn.ParameterDict({"w_gate":nn.Parameter(torch.zeros(extract_feature_size, num_experts), requires_grad=True), 
-                                     "w_noise":nn.Parameter(torch.zeros(extract_feature_size, num_experts), requires_grad=True)})
-        torch.nn.init.normal_(self.gating['w_gate'], mean=0, std=0.01) 
-        torch.nn.init.normal_(self.gating['w_noise'], mean=0, std=0.01) 
-        # self.gating = nn.Sequential(nn.Linear(extract_feature_size, 512), nn.ReLU(), nn.Dropout(0.2), nn.Linear(512, num_experts))
+        # self.gating = nn.ParameterDict({"w_gate":nn.Parameter(torch.zeros(extract_feature_size, num_experts), requires_grad=True), 
+        #                              "w_noise":nn.Parameter(torch.zeros(extract_feature_size, num_experts), requires_grad=True)})
+        # torch.nn.init.normal_(self.gating['w_gate'], mean=0, std=0.01) 
+        # torch.nn.init.normal_(self.gating['w_noise'], mean=0, std=0.01) 
+        self.gating = nn.Sequential(nn.Linear(extract_feature_size, 512), nn.ReLU(), nn.Dropout(0.2), nn.Linear(512, num_experts))
         self.softplus = nn.Softplus()
         self.softmax = nn.Softmax(1)
         self.register_buffer("mean", torch.tensor([0.0]))
@@ -226,16 +226,16 @@ class MoE(nn.Module):
             gates: a Tensor with shape [batch_size, num_experts]
             load: a Tensor with shape [num_experts]
         """
-        clean_logits = x @ self.gating["w_gate"]
+        # clean_logits = x @ self.gating["w_gate"]
 
-        if self.noisy_gating and train:
-            raw_noise_stddev = x @ self.gating['w_noise'] 
-            noise_stddev = ((self.softplus(raw_noise_stddev) + noise_epsilon))
-            noisy_logits = clean_logits + (torch.randn_like(clean_logits) * noise_stddev)
-            logits = noisy_logits
-        else:
-            logits = clean_logits
-        # logits = self.gating(x)
+        # if self.noisy_gating and train:
+        #     raw_noise_stddev = x @ self.gating['w_noise'] 
+        #     noise_stddev = ((self.softplus(raw_noise_stddev) + noise_epsilon))
+        #     noisy_logits = clean_logits + (torch.randn_like(clean_logits) * noise_stddev)
+        #     logits = noisy_logits
+        # else:
+        #     logits = clean_logits
+        logits = self.gating(x)
 
         # calculate topk + 1 that will be needed for the noisy gates
         # top_logits, top_indices = logits.topk(min(self.k + 1, self.num_experts), dim=1)
@@ -247,11 +247,11 @@ class MoE(nn.Module):
         zeros = torch.zeros_like(logits, requires_grad=True)
         gates = zeros.scatter(1, top_k_indices, top_k_gates)
         # self.noisy_gating = False
-        if self.noisy_gating and self.k < self.num_experts and train:
-            # load = self._gates_to_load(gates)
-            load = (self._prob_in_top_k(clean_logits, noisy_logits, noise_stddev, top_logits)).sum(0)
-        else:
-            load = self._gates_to_load(gates)
+        # if self.noisy_gating and self.k < self.num_experts and train:
+        load = self._gates_to_load(gates)
+        #     load = (self._prob_in_top_k(clean_logits, noisy_logits, noise_stddev, top_logits)).sum(0)
+        # else:
+        #     load = self._gates_to_load(gates)
         # print(logits[0])
 
         return gates, load, logits

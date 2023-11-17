@@ -13,10 +13,9 @@ def argparser():
     parser.add_argument('--n_experts', type=int, default=5, help="number of expert model")
     parser.add_argument('--inner_iter', type=int, default=1, help="number clients inner train iter times")
     parser.add_argument('--n_task', type=int, default=4, help="number of tasks")
-
+    parser.add_argument('--rand', type=int, default=0, help="rand choice of MoE")
+    parser.add_argument('--extract_layer', type=int, default=1, help="feature extract position")
     # data setting parameter
-    parser.add_argument('--datapercent', type=float,
-                        default=8e-1, help='data percent to use')
     parser.add_argument('--batch', type=int, default=32, help='batch size')
     
 

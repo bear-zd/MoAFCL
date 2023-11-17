@@ -10,7 +10,7 @@ import numpy as np
 from sklearn.cluster import KMeans
 from typing import List
 from torch.utils.data import TensorDataset, DataLoader
-
+import random
 
 
 label_parser = lambda x : int(x.split("task")[-1])
@@ -29,8 +29,15 @@ def cluster(clients: List[Client], num_experts:int, **kwargs):
         clients[i].count_dict = [i/sum(temp_list) for i in temp_list]
     print(clustered_data)
     return clustered_data
-    
 
+@torch.no_grad()    
+def randfetch(clip_model: ClipModelMA, dataloader, client:Client,device, **kwargs):
+    clip_model.MoE = clip_model.MoE.to(device)
+    clip_model.MoE.eval()
+    for image, _, _ in dataloader:
+        image = image.to(device)
+        _ = clip_model.model.encode_image(image).float() # just for the hook work
+    return random.randint(0, clip_model.n_experts-1)
          
         
     
@@ -63,7 +70,7 @@ def fetch(clip_model: ClipModelMA, dataloader, client:Client,device, **kwargs):
     # print(most_index)
     return most_index[0]
     
-def communicate(clip_model: ClipModelMA, clients: List[Client], device):
+def communicate(clip_model: ClipModelMA, clients: List[Client], task, device):
     # cluster_data = cluster(clients, clip_model.n_experts)
     cluster_data = [[] for _ in range(clip_model.n_experts)]
     for client in range(len(clients)):
@@ -79,5 +86,5 @@ def communicate(clip_model: ClipModelMA, clients: List[Client], device):
         for global_param in global_adapters.parameters():
             global_param.data /= len(cluster_clients)  # Average the parameters
         clip_model.MoE.experts[index] = global_adapters
-    train_server(clip_model, clients, device)
+    train_server(clip_model, clients, task, device)
     

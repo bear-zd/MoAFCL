@@ -94,7 +94,7 @@ def test(args, model, data_loader, device):
             res = res.cpu().numpy()
             correct += np.sum(np.array(res)[:, 0] == np.array(res)[:, 1])
 
-        return correct/total
+        return correct, total
 
 
 def communication(args, server_model, models, client_weights):
@@ -197,59 +197,27 @@ if __name__ == '__main__':
                 else:
                     train_acc = test(
                         args, model, train_loaders[client_idx], device)
-                    print(' Site-{:d}| Train Acc: {:.4f}'.format(
+                    print(' Site-{}| Train Acc: {}'.format(
                         client_idx, train_acc))
-                    logrecord += ' Site-{:d}| Train Acc: {:.4f}\n'.format(
+                    logrecord += ' Site-{}| Train Acc: {}\n'.format(
                         client_idx, train_acc)
 
                     val_acc = test(
                         args, model, test_loaders[client_idx], device)
                     val_acc_list[client_idx] = val_acc
-                    print(' Site-{:d}| Val  Acc: {:.4f}'.format(
+                    print(' Site-{}| Val  Acc: {}'.format(
                         client_idx, val_acc), flush=True)
-                    logrecord += ' Site-{:d}| Val  Acc: {:.4f}\n'.format(
+                    logrecord += ' Site-{}| Val  Acc: {}\n'.format(
                         client_idx, val_acc)
 
-            test_acc_list = [0. for j in range(client_num)]
-            for client_idx in range(client_num):
-                if client_idx in args.test_envs:
-                    test_acc = test(args, server_model,
-                                    test_loaders[client_idx], device)
-                else:
-                    test_acc = test(
-                        args, models[client_idx], test_loaders[client_idx], device)
+            t, c = 0, 0
+            for domain_idx in range(len(test_loaders)):
+                correct, total= test(args, server_model,
+                                    test_loaders[domain_idx], device)
+                t += total
+                c += correct
                 print(
-                    ' Test site-{:d}| Test Acc: {:.4f}'.format(client_idx, test_acc))
-                logrecord += ' Test site-{:d}| Test Acc: {:.4f}'.format(
-                    client_idx, test_acc)
-                test_acc_list[client_idx] = test_acc
+                    ' Test site-{}| Test Acc: {}'.format(test_loaders[domain_idx].domain, correct/total))
+            print(f"total acc:{c/t}")
 
-            if np.mean(val_acc_list) > np.mean(best_acc):
-                for client_idx in range(client_num):
-                    if client_idx in args.test_envs:
-                        pass
-                    else:
-                        best_acc[client_idx] = val_acc_list[client_idx]
-                        best_epoch = a_iter
-                        best_changed = True
-            if best_changed:
-                finalrecord = finalrecord+str(a_iter)+','
-                for item in test_acc_list:
-                    finalrecord = finalrecord+str(item)+','
-                best_changed = False
-    print('best epoch:%d\n' % (best_epoch))
-    logrecord += '\n best epoch:%d\n' % (best_epoch)
-    rec = finalrecord.split(',')[-5:-1]
-    ts = ''
-    for item in rec:
-        ts += '%.4f ' % float(item)
-    print('best test acc: '+ts)
-    logrecord += 'best test acc: '+ts
-    filename = 'results/clip_'+args.dataset+'_'+str(args.datapercent)+'/'+str(
-        args.test_envs)+'_'+str(args.iters)+'-'+str(args.wk_iters)+'-'+args.mode+'_'+str(args.lr)
-    filename = filename+'_'+args.net
-    os.makedirs(filename, exist_ok=True)
-    with open(filename+'/output.txt', 'w') as f:
-        f.write(finalrecord)
-    with open(filename+'/log.txt', 'w') as f:
-        f.write(logrecord)
+

@@ -8,7 +8,7 @@ sys.path.append(base_path)
 
 import clip
 import torchvision.datasets as datasets
-from torch.utils.data import DataLoader, ConcatDataset, Subset
+from torch.utils.data import DataLoader, ConcatDataset, Subset, random_split
 
 from PIL import ImageFile
 import numpy as np
@@ -39,8 +39,11 @@ class ImageTextData(object):
                 transform=self._TRANSFORM,
             )
         
-        self.labels = sorted(data.classes)
+
         self.data = data
+        
+        self.labels = sorted(data.classes)
+        
         
 
         if prompt:
@@ -97,7 +100,12 @@ class DomainDataset:
             index = np.arange(l)
             np.random.seed(self.random_seed)
             np.random.shuffle(index)
-            train_datasets.append(data)
+            if ((self.frac != 1) and (client_name != "test")):
+                split_size = int(self.frac * len(data))
+                temp = Subset(data, index[:split_size])
+                train_datasets.append(temp)
+            else:
+                train_datasets.append(data)
             # l1, l2 = int(l * self.train_percentage), int(l * (1 - self.train_percentage))
             # train_datasets.append(Subset(data, index[:l1]))
             # test_datasets.append(Subset(data, index[l1 : l1 + l2 + 1]))
@@ -120,15 +128,24 @@ class DoaminNet(DomainDataset):
 
 class DoaminNetSub(DomainDataset): 
     def __init__(self, args, preprocess) -> None:
+        self.frac = 0.25
         super().__init__(args, preprocess)
           
     def set_labels(self):
         self.labels = sorted(SELECTED_CLASSES)
         # self.labels = sorted(['aircraft_carrier', 'chandelier', 'harp', 'palm_tree', 'spider', 'airplane', 'church', 'hat', 'panda', 'spoon', 'alarm_clock', 'circle', 'headphones', 'pants', 'spreadsheet', 'ambulance', 'clarinet', 'hedgehog', 'paper_clip', 'square', 'angel', 'clock', 'helicopter', 'parachute', 'squiggle', 'animal_migration', 'cloud', 'helmet', 'parrot', 'squirrel', 'ant', 'coffee_cup', 'hexagon', 'passport', 'stairs', 'anvil', 'compass', 'hockey_puck', 'peanut', 'star', 'apple', 'computer', 'hockey_stick', 'pear', 'steak', 'arm', 'cookie', 'horse', 'peas', 'stereo', 'asparagus', 'cooler', 'hospital', 'pencil', 'stethoscope', 'axe', 'couch', 'hot_air_balloon', 'penguin', 'stitches', 'backpack', 'cow', 'hot_dog', 'piano', 'stop_sign', 'banana', 'crab', 'hot_tub', 'pickup_truck', 'stove', 'bandage', 'crayon', 'hourglass', 'picture_frame', 'strawberry', 'barn', 'crocodile', 'house', 'pig', 'streetlight', 'baseball', 'crown', 'house_plant', 'pillow', 'string_bean', 'baseball_bat', 'cruise_ship', 'hurricane', 'pineapple', 'submarine', 'basket', 'cup', 'ice_cream', 'pizza', 'suitcase', 'basketball', 'diamond', 'jacket', 'pliers', 'sun', 'bat', 'dishwasher', 'jail', 'police_car', 'swan', 'bathtub', 'diving_board', 'kangaroo', 'pond', 'sweater', 'beach', 'dog', 'key', 'pool', 'swing_set', 'bear', 'dolphin', 'keyboard', 'popsicle', 'sword', 'beard', 'donut', 'knee', 'postcard', 'syringe', 'bed', 'door', 'knife', 'potato', 'table', 'bee', 'dragon', 'ladder', 'power_outlet', 'teapot', 'belt', 'dresser', 'lantern', 'purse', 'teddy-bear', 'bench', 'drill', 'laptop', 'rabbit', 'telephone', 'bicycle', 'drums', 'leaf', 'raccoon', 'television', 'binoculars', 'duck', 'leg', 'radio', 'tennis_racquet', 'bird', 'dumbbell', 'light_bulb', 'rain', 'tent', 'birthday_cake', 'ear', 'lighter', 'rainbow', 'The_Eiffel_Tower', 'blackberry', 'elbow', 'lighthouse', 'rake', 'The_Great_Wall_of_China', 'blueberry', 'elephant', 'lightning', 'remote_control', 'The_Mona_Lisa', 'book', 'envelope', 'line', 'rhinoceros', 'tiger', 'boomerang', 'eraser', 'lion', 'rifle', 'toaster', 'bottlecap', 'eye', 'lipstick', 'river', 'toe', 'bowtie', 'eyeglasses', 'lobster', 'roller_coaster', 'toilet', 'bracelet', 'face', 'lollipop', 'rollerskates', 'tooth', 'brain', 'fan', 'mailbox', 'sailboat', 'toothbrush', 'bread', 'feather', 'map', 'sandwich', 'toothpaste', 'bridge', 'fence', 'marker', 'saw', 'tornado', 'broccoli', 'finger', 'matches', 'saxophone', 'tractor', 'broom', 'fire_hydrant', 'megaphone', 'school_bus', 'traffic_light', 'bucket', 'fireplace', 'mermaid', 'scissors', 'train', 'bulldozer', 'firetruck', 'microphone', 'scorpion', 'tree', 'bus', 'fish', 'microwave', 'screwdriver', 'triangle', 'bush', 'flamingo', 'monkey', 'sea_turtle', 'trombone', 'butterfly', 'flashlight', 'moon', 'see_saw', 'truck', 'cactus', 'flip_flops', 'mosquito', 'shark', 'trumpet', 'cake', 'floor_lamp', 'motorbike', 'sheep', 't-shirt', 'calculator', 'flower', 'mountain', 'shoe', 'umbrella', 'calendar', 'flying_saucer', 'mouse', 'shorts', 'underwear', 'camel', 'foot', 'moustache', 'shovel', 'van', 'camera', 'fork', 'mouth', 'sink', 'vase', 'camouflage', 'frog', 'mug', 'skateboard', 'violin', 'campfire', 'frying_pan', 'mushroom', 'skull', 'washing_machine', 'candle', 'garden', 'nail', 'skyscraper', 'watermelon', 'cannon', 'garden_hose', 'necklace', 'sleeping_bag', 'waterslide', 'canoe', 'giraffe', 'nose', 'smiley_face', 'whale', 'car', 'goatee', 'ocean', 'snail', 'wheel', 'carrot', 'golf_club', 'octagon', 'snake', 'windmill', 'castle', 'grapes', 'octopus', 'snorkel', 'wine_bottle', 'cat', 'grass', 'onion', 'snowflake', 'wine_glass', 'ceiling_fan', 'guitar', 'oven', 'snowman', 'wristwatch', 'cello', 'hamburger', 'owl', 'soccer_ball', 'yoga', 'cell_phone', 'hammer', 'paintbrush', 'sock', 'zebra', 'chair', 'hand', 'paint_can', 'speedboat', 'zigzag'])
 
+class Adaptiope(DomainDataset):
+    def __init__(self, args, preprocess) -> None:
+        self.frac = 1
+        super().__init__(args, preprocess)
+    
+    def set_labels(self):
+        self.labels = sorted(['dart', 'laptop', 'umbrella', 'cellphone', 'magic lamp', 'compass', 'ice skates', 'file cabinet', 'wheelchair', 'nail clipper', 'telescope', 'desk lamp', 'bicycle', 'rc car', 'chainsaw', 'hoverboard', 'speakers', 'trash can', 'smoking pipe', 'stethoscope', 'bookcase', 'hot glue gun', 'skeleton', 'baseball bat', 'boxing gloves', 'in-ear headphones', 'hair dryer', 'pogo stick', 'rubber boat', 'binoculars', 'razor', 'glasses', 'keyboard', 'power drill', 'handcuffs', 'toilet brush', 'projector', 'mug', 'sword', 'screwdriver', 'knife', 'quadcopter', 'tape dispenser', 'vr goggles', 'computer', 'usb stick', 'vacuum cleaner', 'hand mixer', 'comb', 'rifle', 'stand mixer', 'ladder', 'letter tray', 'fighter jet', 'stroller', 'sewing machine', 'puncher', 'corkscrew', 'pen', 'ruler', 'electric guitar', 'fire extinguisher', 'scooter', 'skateboard', 'acoustic guitar', 'power strip', 'hard-wired fixed phone', 'motorbike helmet', 'fan', 'syringe', 'drum set', 'over-ear headphones', 'handgun', 'golf club', 'webcam', 'grill', 'monitor', 'wallet', 'ice cube tray', 'tyrannosaurus', 'purse', 'pipe wrench', 'watering can', 'printer', 'bottle', 'car jack', 'spatula', 'coat hanger', 'diving fins', 'game controller', 'computer mouse', 'calculator', 'electric shaver', 'pikachu', 'bicycle helmet', 'axe', 'wristwatch', 'ring binder', 'hat', 'tank', 'brachiosaurus', 'crown', 'microwave', 'shower head', 'notepad', 'cordless fixed phone', 'flat iron', 'roller skates', 'mixing console', 'tent', 'smartphone', 'toothbrush', 'scissors', 'stapler', 'backpack', 'sleeping bag', 'office chair', 'hourglass', 'phonograph', 'network switch', 'lawn mower', 'helicopter', 'snow shovel'])
 
 class Officehome(DomainDataset):
     def __init__(self, args, preprocess) -> None:
+        self.frac = 0.5
         super().__init__(args, preprocess)
         
     def set_labels(self):
@@ -146,5 +163,5 @@ class PACS(DomainDataset):
 
 
 def get_data(dataset) -> DomainDataset:
-    datalist = {"officehome": Officehome, "domainnet":DoaminNet, "domainnetsub":DoaminNetSub}
+    datalist = {"officehome": Officehome, "domainnet":DoaminNet, "domainnetsub":DoaminNetSub, "adaptiope":Adaptiope}
     return datalist[dataset]

@@ -15,25 +15,26 @@ import logging
 from utils.config import img_param_init, set_random_seed
 from utils.dataload import DomainDataset, get_data
 from model.clip import ClipModelMA, Adapter, Client
-from process import train_client, communicate, test_server, test_client, fetch, cluster
+from process import train_client, communicate, test_server, test_client, fetch, cluster, randfetch
 
 
 def init():
     args = argparser()
     if args.logdir is not None:
-        logging.basicConfig(filename=args.logdir, level=logging.DEBUG)
+        logging.basicConfig(filename=args.logdir, level=logging.INFO)
     else:
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logging.getLogger('PIL').setLevel(logging.WARNING)
     args.random_state = np.random.RandomState(1)
     set_random_seed(args.seed)
     args = img_param_init(args)  # init the dataset parameters(domains and classnum)
     args.thresh = 1e-4
-    args.extract_layer = 1
     return args
 
 
 def main():
     args = init()
+    print(args.rand, type(args.rand))
     logging.info("Argument init successful!")
     server_model: ClipModelMA = ClipModelMA(args.net, n_experts=args.n_experts, device=args.device)  # load the server data
     clients_data  = [copy.deepcopy(Client(args.net,args.device)) for i in range(args.n_clients)] # load the client data
@@ -67,11 +68,17 @@ def main():
             cluster(clients_data, server_model.n_experts)
             
         else:
-            logging.info(f"{task} round start fetch!")
+            if args.rand == 1:
+                logging.info(f"{task} round start fetch!")
+            else:
+                logging.info(f"{task} round start randfetch!")
             for client in tqdm(range(args.n_clients)):
                 clients_data[client].feature_data = []
                 temp_hook = server_model.model.visual.transformer.resblocks[args.extract_layer].register_forward_hook(clients_data[client].extract_feature())
-                clients_data[client].assign = fetch(server_model, train_loaders[client], clients_data[client],args.device)
+                if args.rand == 1:
+                    clients_data[client].assign = randfetch(server_model, train_loaders[client], clients_data[client],args.device)
+                else:   
+                    clients_data[client].assign = fetch(server_model, train_loaders[client], clients_data[client],args.device)
                 temp_hook.remove()
                 acc_list = []
                 # clients_data[client].feature_data = []
@@ -83,7 +90,7 @@ def main():
                 logging.info(f'task {task} - client {client} - acc_list{acc_list}')
                 # temp_hook.remove()
 
-        communicate(server_model, clients_data, args.device)
+        communicate(server_model, clients_data, task, args.device)
         for client in range(args.n_clients):
             clients_data[client].feature_data = []
         server_data = Client(args.net,args.device)

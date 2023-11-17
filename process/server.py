@@ -11,16 +11,16 @@ from torch.utils.data import TensorDataset, DataLoader
 from torch.nn import Softmax
 from utils.cliputils import freeze_param, unfreeze_param
 
-def add_laplace_noise(vector, sensitivity=0.1, epsilon=10, device=None):
+def add_laplace_noise(vector, sensitivity=10, epsilon=10,device=None):
     b = sensitivity / epsilon
     noise = np.random.laplace(scale=b, size=vector.shape)    
     noisy_vector = vector + torch.tensor(noise).to(device)
     return noisy_vector.float()
 
-def train_server(clip_model: ClipModelMA, clients: List[Client], device):
+def train_server(clip_model: ClipModelMA, clients: List[Client], task, device):
     clip_model.MoE = clip_model.MoE.to(device)
 
-    optimizer = optim.SGD(clip_model.MoE.gating.parameters(), lr=01.5)
+    optimizer = optim.SGD(clip_model.MoE.gating.parameters(), lr=1.5)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [200,400], gamma=0.5)
     clip_model.MoE.train()
     freeze_param(clip_model.MoE.experts)
@@ -46,15 +46,13 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], device):
             # print(label)
 
             data, label = data.to(device), label.to(device)
-            # data = add_laplace_noise(data, device=device)
+            data = add_laplace_noise(data, device=device)
             _ , loss_gate, logits = clip_model.MoE(data, train_gate=True)
             
-
             # one_hot_label = torch.ones_like(logits, device=device)*0.2
             # one_hot_label[:, label] = 1
-
-            loss_label = binary_cross_entropy_with_logits(
-                logits, label) 
+            # loss_label = binary_cross_entropy_with_logits(logits, label )
+            loss_label = binary_cross_entropy_with_logits(logits, label) 
 
             loss =  2*loss_gate + loss_label
             # print(f"the loss of gate:{loss_gate.item()}, the loss of label {loss_label.item()}")
@@ -71,12 +69,13 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], device):
             optimizer.step()
         if (epoch+1)%100 == 0:
             print(f"epoch {epoch} the trainning set MoE acc : {correct/all}")
+    # torch.save(clip_model.MoE.gating.state_dict(), f"save/gatingDN{task}.pkl" )
     unfreeze_param(clip_model.MoE.experts)
 
 
 
 @torch.no_grad()
-def test_server(clip_model: ClipModelMA, data_loader: DataLoader,server_data, device):
+def test_server(clip_model: ClipModelMA, data_loader: DataLoader, server_data, device):
     clip_model.model.eval()
     clip_model.MoE.eval()
     total = 0
