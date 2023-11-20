@@ -35,8 +35,19 @@ nohup python main.py --dataset domainnetsub --root_dir ~/autodl-tmp/DN20-10-2000
 
 # nohup python main.py --dataset officehome --root_dir /mnt/sda/zd/data/OF10-10-1000-2023/  --batch 100  --n_experts=5 --extract_layer 5  --device cuda:2 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > lapOF1e0.out 2>&1 &
 
-nohup python main.py --dataset domainnetsub --root_dir ~/autodl-tmp/DN20-10-2000-2023/  --batch 100  --n_experts=8 --extract_layer 5  --device cuda:2 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 20 --rand 0 > lapDN1e0.out 2>&1 &
+nohup python main.py --dataset domainnetsub --root_dir /mnt/sda/zd/data/DN20-10-2000-2023/  --batch 100  --n_experts=8 --extract_layer 5  --device cuda:1 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 20 --rand 0 > lapDN5.out 2>&1 &
 # server site
-# nohup python main.py --dataset officehome --root_dir ~/autodl-tmp/OF10-10-1000-2023/  --batch 100  --n_experts=5 --extract_layer 5  --device cuda:0 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > lapOFNo.out 2>&1 &
+nohup python main.py --dataset officehome --root_dir /mnt/sda/zd/data/OF10-10-1000-2023/  --batch 100  --n_experts=5 --extract_layer 5  --device cuda:0 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > lapOF5.out 2>&1 &
 
 # nohup python main.py --dataset domainnetsub --root_dir ~/autodl-tmp/DN20-10-2000-2023/  --batch 100  --n_experts=8 --extract_layer 5  --device cuda:0 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 20 --rand 0 > lapDNNo.out 2>&1 &
+
+nohup python main.py --dataset adaptiope --root_dir  /mnt/sda/zd/data/AD10-10-1000-2023 --batch 100  --n_experts=3 --extract_layer 1  --device cuda:0 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > ADel1.out 2>&1 &
+nohup python main.py --dataset adaptiope --root_dir  /mnt/sda/zd/data/AD10-10-1000-2023 --batch 100  --n_experts=3 --extract_layer 3  --device cuda:1 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > ADel3.out 2>&1 &
+nohup python main.py --dataset adaptiope --root_dir  /mnt/sda/zd/data/AD10-10-1000-2023 --batch 100  --n_experts=3 --extract_layer 5  --device cuda:2 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > ADel5.out 2>&1 &
+nohup python main.py --dataset adaptiope --root_dir  /mnt/sda/zd/data/AD10-10-500-2023 --batch 100  --n_experts=3 --extract_layer 7  --device cuda:0 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > ADel7.out 2>&1 &
+nohup python main.py --dataset adaptiope --root_dir  /mnt/sda/zd/data/AD10-10-500-2023 --batch 100  --n_experts=3 --extract_layer 9  --device cuda:1 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > ADel9.out 2>&1 &
+nohup python main.py --dataset adaptiope --root_dir  /mnt/sda/zd/data/AD10-10-500-2023 --batch 100  --n_experts=3 --extract_layer 11  --device cuda:2 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > ADel11.out 2>&1 &
+
+# nohup python main.py --dataset adaptiope --root_dir  /mnt/sda/zd/data/AD10-10-500-2023 --batch 100  --n_experts=5 --extract_layer 7  --device cuda:0 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > ADel7.out 2>&1 &
+# nohup python main.py --dataset adaptiope --root_dir  /mnt/sda/zd/data/AD10-10-500-2023 --batch 100  --n_experts=5 --extract_layer 9  --device cuda:1 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > ADel9.out 2>&1 &
+# nohup python main.py --dataset adaptiope --root_dir  /mnt/sda/zd/data/AD10-10-500-2023 --batch 100  --n_experts=5 --extract_layer 11  --device cuda:2 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > ADel11.out 2>&1 &

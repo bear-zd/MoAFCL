@@ -11,7 +11,7 @@ from torch.utils.data import TensorDataset, DataLoader
 from torch.nn import Softmax
 from utils.cliputils import freeze_param, unfreeze_param
 
-def add_laplace_noise(vector, sensitivity=10, epsilon=10,device=None):
+def add_laplace_noise(vector, sensitivity=1, epsilon=10,device=None):
     b = sensitivity / epsilon
     noise = np.random.laplace(scale=b, size=vector.shape)    
     noisy_vector = vector + torch.tensor(noise).to(device)
