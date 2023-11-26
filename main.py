@@ -46,7 +46,7 @@ def main():
     logging.info("Data init successful!")
     # print(len(test_loaders))
     server_model.init_prompt()
-    server_model.init_MoE() # expert number already saved in the server_model.
+    server_model.init_MoE() # adapter number already saved in the server_model.
     
     logging.info("Model MoE init successful!")  # use the structure of single CLIP training server and client
     
