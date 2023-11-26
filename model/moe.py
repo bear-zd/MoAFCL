@@ -1,4 +1,4 @@
-# Sparsely-Gated Mixture-of-Experts Layers.
+# Sparsely-Gated Mixture-of-adapters Layers.
 # See "Outrageously Large Neural Networks"
 # https://arxiv.org/abs/1701.06538
 #
@@ -18,47 +18,47 @@ import torch.nn.functional as F
 
 
 class SparseDispatcher(object):
-    """Helper for implementing a mixture of experts.
+    """Helper for implementing a mixture of adapters.
     The purpose of this class is to create input minibatches for the
-    experts and to combine the results of the experts to form a unified
+    adapters and to combine the results of the adapters to form a unified
     output tensor.
     There are two functions:
     dispatch - take an input Tensor and create input Tensors for each expert.
     combine - take output Tensors from each expert and form a combined output
-      Tensor.  Outputs from different experts for the same batch element are
+      Tensor.  Outputs from different adapters for the same batch element are
       summed together, weighted by the provided "gates".
     The class is initialized with a "gates" Tensor, which specifies which
-    batch elements go to which experts, and the weights to use when combining
+    batch elements go to which adapters, and the weights to use when combining
     the outputs.  Batch element b is sent to expert e iff gates[b, e] != 0.
     The inputs and outputs are all two-dimensional [batch, depth].
     Caller is responsible for collapsing additional dimensions prior to
     calling this class and reshaping the output to the original shape.
     See common_layers.reshape_like().
     Example use:
-    gates: a float32 `Tensor` with shape `[batch_size, num_experts]`
+    gates: a float32 `Tensor` with shape `[batch_size, num_adapters]`
     inputs: a float32 `Tensor` with shape `[batch_size, input_size]`
-    experts: a list of length `num_experts` containing sub-networks.
-    dispatcher = SparseDispatcher(num_experts, gates)
+    adapters: a list of length `num_adapters` containing sub-networks.
+    dispatcher = SparseDispatcher(num_adapters, gates)
     expert_inputs = dispatcher.dispatch(inputs)
-    expert_outputs = [experts[i](expert_inputs[i]) for i in range(num_experts)]
+    expert_outputs = [adapters[i](expert_inputs[i]) for i in range(num_adapters)]
     outputs = dispatcher.combine(expert_outputs)
     The preceding code sets the output for a particular example b to:
-    output[b] = Sum_i(gates[b, i] * experts[i](inputs[b]))
+    output[b] = Sum_i(gates[b, i] * adapters[i](inputs[b]))
     This class takes advantage of sparsity in the gate matrix by including in the
     `Tensor`s for expert i only the batch elements for which `gates[b, i] > 0`.
     """
 
-    def __init__(self, num_experts, gates):
+    def __init__(self, num_adapters, gates):
         """Create a SparseDispatcher."""
 
         self._gates = gates
-        self._num_experts = num_experts
-        # sort experts
-        sorted_experts, index_sorted_experts = torch.nonzero(gates).sort(0)
+        self._num_adapters = num_adapters
+        # sort adapters
+        sorted_adapters, index_sorted_adapters = torch.nonzero(gates).sort(0)
         # drop indices
-        _, self._expert_index = sorted_experts.split(1, dim=1)
+        _, self._expert_index = sorted_adapters.split(1, dim=1)
         # get according batch index for each expert
-        self._batch_index = torch.nonzero(gates)[index_sorted_experts[:, 1], 0]
+        self._batch_index = torch.nonzero(gates)[index_sorted_adapters[:, 1], 0]
         # calculate num samples that each expert gets
         self._part_sizes = (gates > 0).sum(0).tolist()
         # expand gates to match with self._batch_index
@@ -72,11 +72,11 @@ class SparseDispatcher(object):
         Args:
           inp: a `Tensor` of shape "[batch_size, <extra_input_dims>]`
         Returns:
-          a list of `num_experts` `Tensor`s with shapes
+          a list of `num_adapters` `Tensor`s with shapes
             `[expert_batch_size_i, <extra_input_dims>]`.
         """
 
-        # assigns samples to experts whose gate is nonzero
+        # assigns samples to adapters whose gate is nonzero
 
         # expand according to batch index so we can just split by _part_sizes
         inp_exp = inp[self._batch_index].squeeze(1)
@@ -85,11 +85,11 @@ class SparseDispatcher(object):
     def combine(self, expert_out, multiply_by_gates=True):
         """Sum together the expert output, weighted by the gates.
         The slice corresponding to a particular batch element `b` is computed
-        as the sum over all experts `i` of the expert output, weighted by the
+        as the sum over all adapters `i` of the expert output, weighted by the
         corresponding gate values.  If `multiply_by_gates` is set to False, the
         gate values are ignored.
         Args:
-          expert_out: a list of `num_experts` `Tensor`s, each with shape
+          expert_out: a list of `num_adapters` `Tensor`s, each with shape
             `[expert_batch_size_i, <extra_output_dims>]`.
           multiply_by_gates: a boolean
         Returns:
@@ -101,7 +101,7 @@ class SparseDispatcher(object):
         if multiply_by_gates:
             stitched = stitched.mul(self._nonzero_gates)
         zeros = torch.zeros(self._gates.size(0), expert_out[-1].size(1), requires_grad=True, device=stitched.device)
-        # combine samples that have been processed by the same k experts
+        # combine samples that have been processed by the same k adapters
         combined = zeros.index_add(0, self._batch_index, stitched.float())
         # add eps to all zero values in order to avoid nans when going back to log space
         combined[combined == 0] = np.finfo(float).eps
@@ -111,7 +111,7 @@ class SparseDispatcher(object):
     def expert_to_gates(self):
         """Gate values corresponding to the examples in the per-expert `Tensor`s.
         Returns:
-          a list of `num_experts` one-dimensional `Tensor`s with type `tf.float32`
+          a list of `num_adapters` one-dimensional `Tensor`s with type `tf.float32`
               and shapes `[expert_batch_size_i]`
         """
         # split nonzero gates for each expert
@@ -122,35 +122,35 @@ class SparseDispatcher(object):
 
 class MoE(nn.Module):
 
-    """Call a Sparsely gated mixture of experts layer with 1-layer Feed-Forward networks as experts.
+    """Call a Sparsely gated mixture of adapters layer with 1-layer Feed-Forward networks as adapters.
     Args:
     input_size: integer - size of the input
     output_size: integer - size of the input
-    num_experts: an integer - number of experts
-    hidden_size: an integer - hidden size of the experts
+    num_adapters: an integer - number of adapters
+    hidden_size: an integer - hidden size of the adapters
     noisy_gating: a boolean
-    k: an integer - how many experts to use for each batch element
+    k: an integer - how many adapters to use for each batch element
     """
 
-    def __init__(self, extract_feature_size ,input_size,  expert_model ,num_experts, noisy_gating=True, k=1, device=None):
+    def __init__(self, extract_feature_size ,input_size,  expert_model ,num_adapters, noisy_gating=True, k=1, device=None):
         super(MoE, self).__init__()
         self.noisy_gating = noisy_gating
-        self.num_experts = num_experts
+        self.num_adapters = num_adapters
         self.input_size = input_size
         self.device = device
         self.k = k
-        # instantiate experts
-        self.experts = nn.ModuleList([copy.deepcopy(expert_model) for i in range(self.num_experts)])
-        # self.gating = nn.ParameterDict({"w_gate":nn.Parameter(torch.zeros(extract_feature_size, num_experts), requires_grad=True), 
-        #                              "w_noise":nn.Parameter(torch.zeros(extract_feature_size, num_experts), requires_grad=True)})
+        # instantiate adapters
+        self.adapters = nn.ModuleList([copy.deepcopy(expert_model) for i in range(self.num_adapters)])
+        # self.gating = nn.ParameterDict({"w_gate":nn.Parameter(torch.zeros(extract_feature_size, num_adapters), requires_grad=True), 
+        #                              "w_noise":nn.Parameter(torch.zeros(extract_feature_size, num_adapters), requires_grad=True)})
         # torch.nn.init.normal_(self.gating['w_gate'], mean=0, std=0.01) 
         # torch.nn.init.normal_(self.gating['w_noise'], mean=0, std=0.01) 
-        self.gating = nn.Sequential(nn.Linear(extract_feature_size, 512), nn.ReLU(), nn.Dropout(0.2), nn.Linear(512, num_experts))
+        self.gating = nn.Sequential(nn.Linear(extract_feature_size, 512), nn.ReLU(), nn.Dropout(0.2), nn.Linear(512, num_adapters))
         self.softplus = nn.Softplus()
         self.softmax = nn.Softmax(1)
         self.register_buffer("mean", torch.tensor([0.0]))
         self.register_buffer("std", torch.tensor([1.0]))
-        assert(self.k <= self.num_experts)
+        assert(self.k <= self.num_adapters)
 
     
     
@@ -166,7 +166,7 @@ class MoE(nn.Module):
         a `Scalar`.
         """
         eps = 1e-10
-        # if only num_experts = 1
+        # if only num_adapters = 1
 
         if x.shape[0] == 1:
             return torch.tensor([0], device=x.device, dtype=x.dtype)
@@ -186,7 +186,7 @@ class MoE(nn.Module):
         """Helper function to NoisyTopKGating.
         Computes the probability that value is in top k, given different random noise.
         This gives us a way of backpropagating from a loss that balances the number
-        of times each expert is in the top k experts per example.
+        of times each expert is in the top k adapters per example.
         In the case of no noise, pass in None for noise_stddev, and the result will
         not be differentiable.
         Args:
@@ -223,8 +223,8 @@ class MoE(nn.Module):
             train: a boolean - we only add noise at training time.
             noise_epsilon: a float
           Returns:
-            gates: a Tensor with shape [batch_size, num_experts]
-            load: a Tensor with shape [num_experts]
+            gates: a Tensor with shape [batch_size, num_adapters]
+            load: a Tensor with shape [num_adapters]
         """
         # clean_logits = x @ self.gating["w_gate"]
 
@@ -238,8 +238,8 @@ class MoE(nn.Module):
         logits = self.gating(x)
 
         # calculate topk + 1 that will be needed for the noisy gates
-        # top_logits, top_indices = logits.topk(min(self.k + 1, self.num_experts), dim=1)
-        top_logits, top_indices = logits.topk(min(self.k + 1, self.num_experts), dim=1)
+        # top_logits, top_indices = logits.topk(min(self.k + 1, self.num_adapters), dim=1)
+        top_logits, top_indices = logits.topk(min(self.k + 1, self.num_adapters), dim=1)
         top_k_logits = top_logits[:, :self.k]
         top_k_indices = top_indices[:, :self.k]
         top_k_gates = self.softmax(top_k_logits/temperature)
@@ -247,7 +247,7 @@ class MoE(nn.Module):
         zeros = torch.zeros_like(logits, requires_grad=True)
         gates = zeros.scatter(1, top_k_indices, top_k_gates)
         # self.noisy_gating = False
-        # if self.noisy_gating and self.k < self.num_experts and train:
+        # if self.noisy_gating and self.k < self.num_adapters and train:
         load = self._gates_to_load(gates)
         #     load = (self._prob_in_top_k(clean_logits, noisy_logits, noise_stddev, top_logits)).sum(0)
         # else:
@@ -266,7 +266,7 @@ class MoE(nn.Module):
         y: a tensor with shape [batch_size, output_size].
         extra_training_loss: a scalar.  This should be added into the overall
         training loss of the model.  The backpropagation of this loss
-        encourages all experts to be approximately equally used across a batch.
+        encourages all adapters to be approximately equally used across a batch.
         """
         gates, load, logits = self.noisy_top_k_gating(x, self.training)
         # print(gates, load)
@@ -278,9 +278,9 @@ class MoE(nn.Module):
         if train_gate:
             return None, loss, logits
         else:
-          dispatcher = SparseDispatcher(self.num_experts, gates)
+          dispatcher = SparseDispatcher(self.num_adapters, gates)
           expert_inputs = dispatcher.dispatch(x2)
           gates = dispatcher.expert_to_gates()
-          expert_outputs = [self.experts[i](expert_inputs[i]) for i in range(self.num_experts)]
+          expert_outputs = [self.adapters[i](expert_inputs[i]) for i in range(self.num_adapters)]
           y = dispatcher.combine(expert_outputs)
           return y, loss, logits

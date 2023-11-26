@@ -23,8 +23,8 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], task, device):
     optimizer = optim.SGD(clip_model.MoE.gating.parameters(), lr=1.5)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [200,400], gamma=0.5)
     clip_model.MoE.train()
-    freeze_param(clip_model.MoE.experts)
-    clip_model.MoE.experts.eval()
+    freeze_param(clip_model.MoE.adapters)
+    clip_model.MoE.adapters.eval()
 
     
 
@@ -70,7 +70,7 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], task, device):
         if (epoch+1)%100 == 0:
             print(f"epoch {epoch} the trainning set MoE acc : {correct/all}")
     torch.save(clip_model.MoE.gating.state_dict(), f"save/gatingAD{task}.pkl" )
-    unfreeze_param(clip_model.MoE.experts)
+    unfreeze_param(clip_model.MoE.adapters)
 
 
 

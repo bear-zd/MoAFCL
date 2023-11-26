@@ -10,7 +10,7 @@ def argparser():
     parser.add_argument('--logdir', type=str, default=None, help='log save path')
     parser.add_argument('--device', type=str, default="cuda:1", help='set device info')
     parser.add_argument('--n_clients', type=int, default=10, help="number of clients")
-    parser.add_argument('--n_experts', type=int, default=5, help="number of expert model")
+    parser.add_argument('--n_adapters', type=int, default=5, help="number of expert model")
     parser.add_argument('--inner_iter', type=int, default=1, help="number clients inner train iter times")
     parser.add_argument('--n_task', type=int, default=4, help="number of tasks")
     parser.add_argument('--rand', type=int, default=0, help="rand choice of MoE")

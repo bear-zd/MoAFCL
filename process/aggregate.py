@@ -15,16 +15,16 @@ import random
 
 label_parser = lambda x : int(x.split("task")[-1])
 
-def cluster(clients: List[Client], num_experts:int, **kwargs):
-    kmeans = KMeans(n_clusters=num_experts)
+def cluster(clients: List[Client], num_adapters:int, **kwargs):
+    kmeans = KMeans(n_clusters=num_adapters)
     flattened_data = [client.preprocess().reshape(-1) for client in clients]
     kmeans.fit(flattened_data)
     cluster_labels = kmeans.labels_
-    clustered_data = [[] for _ in range(num_experts)]
+    clustered_data = [[] for _ in range(num_adapters)]
     for i, label in enumerate(cluster_labels):
         clustered_data[label].append(i)
         clients[i].assign = label
-        temp_list = [0]*num_experts
+        temp_list = [0]*num_adapters
         temp_list[clients[i].assign] = 1
         clients[i].count_dict = [i/sum(temp_list) for i in temp_list]
     print(clustered_data)
@@ -37,7 +37,7 @@ def randfetch(clip_model: ClipModelMA, dataloader, client:Client,device, **kwarg
     for image, _, _ in dataloader:
         image = image.to(device)
         _ = clip_model.model.encode_image(image).float() # just for the hook work
-    return random.randint(0, clip_model.n_experts-1)
+    return random.randint(0, clip_model.n_adapters-1)
          
         
     
@@ -48,8 +48,8 @@ def fetch(clip_model: ClipModelMA, dataloader, client:Client,device, **kwargs):
     clip_model.MoE.eval()
     total = 0
     total_var = 0
-    # count_dict = {i:0 for i in range(clip_model.n_experts)}
-    count_dict = [0]*clip_model.n_experts
+    # count_dict = {i:0 for i in range(clip_model.n_adapters)}
+    count_dict = [0]*clip_model.n_adapters
     for image, _, _ in dataloader:
         image = image.to(device)
         _ = clip_model.model.encode_image(image).float() # just for the hook work
@@ -71,13 +71,13 @@ def fetch(clip_model: ClipModelMA, dataloader, client:Client,device, **kwargs):
     return most_index[0]
     
 def communicate(clip_model: ClipModelMA, clients: List[Client], task, device):
-    # cluster_data = cluster(clients, clip_model.n_experts)
-    cluster_data = [[] for _ in range(clip_model.n_experts)]
+    # cluster_data = cluster(clients, clip_model.n_adapters)
+    cluster_data = [[] for _ in range(clip_model.n_adapters)]
     for client in range(len(clients)):
         cluster_data[clients[client].assign].append(client)
     print(cluster_data)
     for index, cluster_clients in enumerate(cluster_data):
-        global_adapters = clip_model.MoE.experts[index].to(device)  # FedAvg for every server
+        global_adapters = clip_model.MoE.adapters[index].to(device)  # FedAvg for every server
         for param in global_adapters.parameters():
             param.data.zero_()
         for c in cluster_clients:
@@ -85,6 +85,6 @@ def communicate(clip_model: ClipModelMA, clients: List[Client], task, device):
                 global_param.data += client_param.data
         for global_param in global_adapters.parameters():
             global_param.data /= len(cluster_clients)  # Average the parameters
-        clip_model.MoE.experts[index] = global_adapters
+        clip_model.MoE.adapters[index] = global_adapters
     train_server(clip_model, clients, task, device)
     

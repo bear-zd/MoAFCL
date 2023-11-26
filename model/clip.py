@@ -118,9 +118,9 @@ class FedClip(ClipModel):
 
 
 class ClipModelMA(ClipModel):
-    def __init__(self,model_name="Vit-B/32",n_experts=5,top_k = 1, device = "cuda"):
+    def __init__(self,model_name="Vit-B/32",n_adapters=5,top_k = 1, device = "cuda"):
         super().__init__(model_name, device)
-        self.n_experts = n_experts
+        self.n_adapters = n_adapters
         self.client_label = None
         self.labels = None
         self.top_k = top_k
@@ -171,7 +171,7 @@ class ClipModelMA(ClipModel):
         init_adapter = VisionDomainAdapter(self.model_name, self.domain_token)
         image_feature = ADAPTER_PARAMETER[self.model_name]["image_feature"]
         extract_feature = ADAPTER_PARAMETER[self.model_name]["extract_feature"]
-        self.MoE: MoE = MoE(extract_feature ,image_feature, init_adapter , num_experts = self.n_experts, k=self.top_k, noisy_gating=True,device=self.device)
+        self.MoE: MoE = MoE(extract_feature ,image_feature, init_adapter , num_adapters = self.n_adapters, k=self.top_k, noisy_gating=True,device=self.device)
 
 
 class FedWeITClip(ClipModel):
