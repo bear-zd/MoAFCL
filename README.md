@@ -1,7 +1,7 @@
 # FMC
 Federated Learning CLIP with mixture of experts(adapter)
 
-https://github.com/davidmrau/mixture-of-experts MoE，引入到model/moe.py
+https://github.com/davidmrau/mixture-of-experts MoE，model/moe.py
 
 https://github.com/microsoft/PersonalizedFL/tree/main/fedclip FedCLIP
 
