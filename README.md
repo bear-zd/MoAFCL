@@ -1,5 +1,5 @@
-# FMC
-Federated Learning CLIP with mixture of experts(adapter)
+# MoAFCL
+Mixture of Adapters Federated Continous Learning
 
 https://github.com/davidmrau/mixture-of-experts MoE，model/moe.py
 
