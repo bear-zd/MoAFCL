@@ -12,8 +12,8 @@ SELECTED_CLASS = [ "tree","golf_club","squirrel","dog","whale","spreadsheet","sn
 
 
 def subset():
-    inputdir = '/mnt/sda/zd/data/DomainNet'
-    outputdir = '/mnt/sda/zd/data/subDN'
+    inputdir = '/mnt/sda/xxx/data/DomainNet'
+    outputdir = '/mnt/sda/xxx/data/subDN'
     for root, dirs, files in os.walk(inputdir):
         for dir in dirs:
             if dir in SELECTED_CLASS:
@@ -162,8 +162,8 @@ def final_splitdata(indir:str,outdir:str, sample_strategy:strategy=None) :
 
 
 if __name__ == "__main__":
-    INDIR = "/mnt/sda/zd/data/Adaptiope"
-    OUTDIR = '/mnt/sda/zd/data/AD10-10-1000-2023'
+    INDIR = "xx/data/Adaptiope"
+    OUTDIR = 'xx/data/AD10-10-1000-2023'
     sample_strategy = single_strategy(os.listdir(INDIR), 10, 10, 1000,seq=True)
     final_splitdata(INDIR, OUTDIR, sample_strategy)
 

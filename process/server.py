@@ -11,7 +11,7 @@ from torch.utils.data import TensorDataset, DataLoader
 from torch.nn import Softmax
 from utils.cliputils import freeze_param, unfreeze_param
 
-def add_laplace_noise(vector, sensitivity=1, epsilon=10,device=None):
+def add_laplace_noise(vector, sensitivity=1, epsilon=100,device=None):
     b = sensitivity / epsilon
     noise = np.random.laplace(scale=b, size=vector.shape)    
     noisy_vector = vector + torch.tensor(noise).to(device)
@@ -69,7 +69,7 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], task, device):
             optimizer.step()
         if (epoch+1)%100 == 0:
             print(f"epoch {epoch} the trainning set MoE acc : {correct/all}")
-    # torch.save(clip_model.MoE.gating.state_dict(), f"save/gatingDN{task}.pkl" )
+    torch.save(clip_model.MoE.gating.state_dict(), f"save/gatingAD{task}.pkl" )
     unfreeze_param(clip_model.MoE.experts)
 
 

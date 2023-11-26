@@ -3,7 +3,7 @@ def argparser():
     parser = argparse.ArgumentParser()
     # meta setting parameter
     parser.add_argument('--dataset', type=str, default='officehome')
-    parser.add_argument('--root_dir', type=str, default='/mnt/sda/zd/data/')
+    parser.add_argument('--root_dir', type=str, default='/data/')
     parser.add_argument('--net', type=str, default='ViT-B/16',
                         help='[RN50 | RN101 | RN50x4 | RN50x16 | RN50x64 | ViT-B/32 | ViT-B/16 | ViT-L/14 | ViT-L/14@336px]')
     parser.add_argument('--seed', type=int, default=0, help='random seed')

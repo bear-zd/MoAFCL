@@ -9,7 +9,6 @@ import pandas as pd
 import torch
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
-#python main_FedKNOW.py --alg=WEIT --dataset=officehome --net=ViT-B/16 --root_dir=/mnt/sda/zd/data/splitdata  --num_users=10 --frac=1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=4 --epoch=150  --local_ep=8  --gpu=0 --batch 100
 from utils.options import args_parser
 
 from models.test import  test_img_local_all_WEIT
