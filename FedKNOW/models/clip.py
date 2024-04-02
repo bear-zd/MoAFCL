@@ -7,17 +7,18 @@ from utils.cliputils import freeze_param
 import copy
 import torch
 from .layer import DecomposedLinear
-ADAPTER_PARAMETER = {"ViT-B/16":{"image_feature":512, "hidden_size":512, "output_feature":512},
-             "RN50":{"image_feature":1024, "hidden_size":512, "output_feature":1024}}
-
+ADAPTER_PARAMETER = {"ViT-B/32":{"image_feature":512, "hidden_size":1024, "output_feature":512, "extract_feature":768},
+                    "ViT-B/16":{"image_feature":512, "hidden_size":1024, "output_feature":512, "extract_feature":768},
+                     "ViT-L/14":{"image_feature":768, "hidden_size":1024, "output_feature":512, "extract_feature":1024},
+                     "ViT-L/14@336px":{"image_feature":768, "hidden_size":1024, "output_feature":512, "extract_feature":1024}}
 
     
 class WeITAdapter(nn.Module):
     def __init__(self, base_model: str, label="origin", **kwargs):
         super().__init__()
-        input_size = ADAPTER_PARAMETER[base_model]['image_feature']
-        output_size = ADAPTER_PARAMETER[base_model]['output_feature']
+        input_size = ADAPTER_PARAMETER[base_model]['extract_feature']
         hidden_size = ADAPTER_PARAMETER[base_model]['hidden_size']
+        output_size = ADAPTER_PARAMETER[base_model]['image_feature']
         self.fc1 = DecomposedLinear(input_size, hidden_size)
         self.last = DecomposedLinear(hidden_size, output_size)
 
@@ -61,7 +62,7 @@ class ClipModel(object):
         self.model_name = model_name
         self.device = device
         self.labels = None
-        self.EMBEDDING_DIM = 512
+        self.EMBEDDING_DIM = ADAPTER_PARAMETER[self.model_name]["image_feature"]
 
 
 

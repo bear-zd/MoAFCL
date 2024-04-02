@@ -69,3 +69,31 @@ nohup python FedKNOW/main_FedKNOW.py --alg=FedKNOW --dataset=adaptiope --net=ViT
 # nohup python main.py --dataset adaptiope --root_dir  xxx/data/AD10-10-500-2023 --batch 100  --n_adapters=5 --extract_layer 7  --device cuda:0 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > ADel7.out 2>&1 &
 # nohup python main.py --dataset adaptiope --root_dir  xxx/data/AD10-10-500-2023 --batch 100  --n_adapters=5 --extract_layer 9  --device cuda:1 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > ADel9.out 2>&1 &
 # nohup python main.py --dataset adaptiope --root_dir  xxx/data/AD10-10-500-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:2 --inner_iter 5 --n_task 10 --seed 2023 --n_clients 10 --rand 0 > ADel11.out 2>&1 &
+
+nohup python main.py --dataset officehome --root_dir  ~/autodl-tmp/OF10-10-1000-2023 --batch 100  --n_adapters=5 --extract_layer 3  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10 --rand 0 --net "ViT-L/14@336px" > ViTL336.out 2>&1 &
+nohup python main.py --dataset officehome --root_dir  ~/autodl-tmp/OF10-10-1000-2023 --batch 100  --n_adapters=5 --extract_layer 3  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10 --rand 0 --net "ViT-L/14" > ViTL.out 2>&1 &
+nohup python main.py --dataset officehome --root_dir  ~/autodl-tmp/OF10-10-1000-2023 --batch 100  --n_adapters=5 --extract_layer 3  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10 --rand 0 --net "ViT-B/32" > ViTB32.out 2>&1 &
+
+nohup python FedKNOW/main_WEIT.py --alg=WEIT --dataset=officehome --net=ViT-B/32 --root_dir=~/autodl-tmp/OF10-10-1000-2023 --num_users=10 --frac=1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > weitB32.out 2>&1 &
+nohup python FedKNOW/main_WEIT.py --alg=WEIT --dataset=officehome --net=ViT-L/14 --root_dir=~/autodl-tmp/OF10-10-1000-2023 --num_users=10 --frac=1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > weitL.out 2>&1 &
+nohup python FedKNOW/main_WEIT.py --alg=WEIT --dataset=officehome --net=ViT-L/14@336px --root_dir=~/autodl-tmp/OF10-10-1000-2023 --num_users=10 --frac=1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > weitL336.out 2>&1 &
+
+nohup python FedKNOW/main_FedKNOW.py --alg=FedKNOW --dataset=officehome --net=ViT-B/32 --root_dir=~/autodl-tmp/OF10-10-1000-2023 --num_users=10 --frac=1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > knowB32.out 2>&1 &
+nohup python FedKNOW/main_FedKNOW.py --alg=FedKNOW --dataset=officehome --net=ViT-L/14 --root_dir=~/autodl-tmp/OF10-10-1000-2023 --num_users=10 --frac=1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > knowL.out 2>&1 &
+nohup python FedKNOW/main_FedKNOW.py --alg=FedKNOW --dataset=officehome --net=ViT-L/14@336px --root_dir=~/autodl-tmp/OF10-10-1000-2023 --num_users=10 --frac=1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > knowL336.out 2>&1 &
+
+nohup python fedclip.py --dataset officehome --root_dir  ~/autodl-tmp/OF10-10-1000-2023 --batch 100  --device cuda:0 --wk_iters 10 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-L/14@336px" > FedCLIPL336.out 2>&1 &
+nohup python fedclip.py --dataset officehome --root_dir  ~/autodl-tmp/OF10-10-1000-2023 --batch 100  --device cuda:0 --wk_iters 10 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-L/14" > FedCLIPL.out 2>&1 &
+nohup python fedclip.py --dataset officehome --root_dir  ~/autodl-tmp/OF10-10-1000-2023 --batch 100  --device cuda:0 --wk_iters 10 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/32" > FedCLIPB32.out 2>&1 &
+
+nohup python FedKNOW/main_FedKNOW.py --alg=FedKNOW --dataset=officehome --net=ViT-B/16 --root_dir=~/autodl-tmp/OF10-10-1000-2023-D2 --num_users=10 --frac=1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > knowD2.out 2>&1 &
+nohup python FedKNOW/main_WEIT.py --alg=WEIT --dataset=officehome --net=ViT-B/16 --root_dir=~/autodl-tmp/OF10-10-1000-2023-D2 --num_users=10 --frac=1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > weitD2.out 2>&1 &
+nohup python fedclip.py --dataset officehome --root_dir  ~/autodl-tmp/OF10-10-1000-2023-D2 --batch 100  --device cuda:0 --wk_iters 10 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > FedCLIPD2 2>&1 &
+
+nohup python FedKNOW/main_FedKNOW.py --alg=FedKNOW --dataset=officehome --net=ViT-B/16 --root_dir=~/autodl-tmp/OF10-10-1000-2023-D3 --num_users=10 --frac=1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > knowD3.out 2>&1 &
+nohup python FedKNOW/main_WEIT.py --alg=WEIT --dataset=officehome --net=ViT-B/16 --root_dir=~/autodl-tmp/OF10-10-1000-2023-D3 --num_users=10 --frac=1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > weitD3.out 2>&1 &
+nohup python fedclip.py --dataset officehome --root_dir  ~/autodl-tmp/OF10-10-1000-2023-D3 --batch 100  --device cuda:0 --wk_iters 10 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > FedCLIPD3 2>&1 &
+
+
+nohup python main.py --dataset officehome --root_dir  ~/autodl-tmp/OF10-10-1000-2023 --batch 100  --n_adapters=5 --extract_layer 3  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10 --rand 0 --net "ViT-B/32" > ViTB32.out 2>&1 &
+

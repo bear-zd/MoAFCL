@@ -88,6 +88,7 @@ def train_client(clip_model : ClipModelMA, client: Client, dataloader, device, a
         domain_feature = client.adapter(list_image_domain_features[index][0].to(device))
         mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
         _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
+    
         text_features = clip_model._get_text_features(_mean_domain_features.half())
         
         

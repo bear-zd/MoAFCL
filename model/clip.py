@@ -9,8 +9,10 @@ import itertools
 import numpy as np
 import torch
 import torch.nn.functional as F
-ADAPTER_PARAMETER = {"ViT-B/16":{"image_feature":512, "hidden_size":1024, "output_feature":512, "extract_feature":768},
-             "RN50":{"image_feature":1024, "hidden_size":1024, "output_feature":1024,"extract_feature":512}}
+ADAPTER_PARAMETER = {"ViT-B/32":{"image_feature":512, "hidden_size":1024, "output_feature":512, "extract_feature":768},
+                    "ViT-B/16":{"image_feature":512, "hidden_size":1024, "output_feature":512, "extract_feature":768},
+                     "ViT-L/14":{"image_feature":768, "hidden_size":1024, "output_feature":512, "extract_feature":1024},
+                     "ViT-L/14@336px":{"image_feature":768, "hidden_size":1024, "output_feature":512, "extract_feature":1024}}
 
 class Client():
     def __init__(self, net, device):
@@ -33,10 +35,10 @@ class VisionDomainAdapter(nn.Module):
         super(VisionDomainAdapter, self).__init__()
         image_feature = ADAPTER_PARAMETER[base_model]['extract_feature']
         hidden_size = ADAPTER_PARAMETER[base_model]['hidden_size']
-        output_feature = ADAPTER_PARAMETER[base_model]['output_feature']
+        output_feature = ADAPTER_PARAMETER[base_model]['image_feature']
         self.input = nn.Linear(image_feature, hidden_size)
         self.dropout = nn.Dropout(0.1)
-        self.output = nn.Linear(hidden_size, 512*domain_token)
+        self.output = nn.Linear(hidden_size, output_feature*domain_token)
         self.n_outputs = output_feature
     
     def forward(self, x):
@@ -55,7 +57,7 @@ class Adapter(nn.Module):
         super(Adapter, self).__init__()
         image_feature = ADAPTER_PARAMETER[base_model]['image_feature']
         hidden_size = ADAPTER_PARAMETER[base_model]['hidden_size']
-        output_feature = ADAPTER_PARAMETER[base_model]['output_feature']
+        output_feature = ADAPTER_PARAMETER[base_model]['image_feature']
 
         self.adapter = nn.Sequential(
                         nn.Linear(image_feature, hidden_size),
@@ -89,7 +91,7 @@ class ClipModel(object):
         self.model.to(device)
         self.model_name = model_name
         self.device = device
-        self.EMBEDDING_DIM = 512
+        self.EMBEDDING_DIM = ADAPTER_PARAMETER[self.model_name]["image_feature"]
 
 
 class FedClip(ClipModel):

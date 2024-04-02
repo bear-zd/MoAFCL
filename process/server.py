@@ -27,8 +27,8 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], task, device):
     clip_model.MoE.adapters.eval()
 
     
-
-    temp_data = torch.tensor(np.stack([i.preprocess() for i in clients]).reshape(-1, 768), dtype=torch.float)
+    shape = 768 if "B" in clip_model.model_name else 1024
+    temp_data = torch.tensor(np.stack([i.preprocess() for i in clients]).reshape(-1, shape), dtype=torch.float)
     # temp_label_data = torch.tensor(list(itertools.chain.from_iterable([[i.count_dict]*len(i.preprocess()) for i in clients])), dtype=torch.long)
     temp_label_data = torch.tensor(list(itertools.chain.from_iterable([[i.count_dict]*len(i.preprocess()) for i in clients])), dtype=torch.float)
 
