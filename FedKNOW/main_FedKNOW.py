@@ -1,3 +1,5 @@
+import sys
+sys.path.append(".")
 import copy
 import itertools
 import numpy as np
@@ -6,6 +8,7 @@ import torch
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 from utils.options import args_parser
+
 # from utils.train_utils import get_data, get_model
 from models.Nets import KNOWAdapter
 from models.test import test_img_local_all_KNOW
@@ -14,6 +17,7 @@ import time
 from models.Packnet import PackNet
 from models.clip import FedKNOWClip
 from utils.dataload import DomainDataset, get_data
+
 import random
 def set_random_seed(seed=2023):
     random.seed(seed)
@@ -31,16 +35,16 @@ def img_param_init(args):
     elif dataset == 'officehome':
         domains = ['Art', 'Clipart', 'Product', 'Real World']
         args.numclasses = 65
-    elif dataset == 'domainnet':
-        domains = ['clipart','infograph','painting','quickdraw','real','sketch']
-        args.numclasses = 345
     elif dataset == 'domainnetsub':
         domains = ['clipart','infograph','painting','quickdraw','real','sketch']
         args.numclasses = 100
     elif dataset == 'adaptiope':
         domains = ['synthetic', 'real_life', 'product_images']
         args.numclasses = 123
-    else:
+    elif dataset in ['cifar100', 'miniimagenet']:
+        domains = ['0groups', '1groups', '2groups', '3groups', '4groups']
+        args.numclasses = 100
+    else :
         raise BaseException(f"{dataset} dataset not defined!")
     args.wd = 1e-4
     args.lambda_l1 = 1e-3

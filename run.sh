@@ -97,3 +97,13 @@ nohup python fedclip.py --dataset officehome --root_dir  ~/autodl-tmp/OF10-10-10
 
 nohup python main.py --dataset officehome --root_dir  ~/autodl-tmp/OF10-10-1000-2023 --batch 100  --n_adapters=5 --extract_layer 3  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10 --rand 0 --net "ViT-B/32" > ViTB32.out 2>&1 &
 
+
+python main.py --dataset miniimagenet --root_dir  /root/autodl-tmp/MI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 5  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10 --rand 0 --net "ViT-B/16"
+
+
+# for classwise FCL
+nohup python -u main.py --dataset miniimagenet --root_dir  /root/autodl-tmp/MI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 40 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "OurMini.out" 2>&1 &
+nohup python FedKNOW/main_FedKNOW.py --alg=FedKNOW --dataset=miniimagenet --net=ViT-B/16 --root_dir=/root/autodl-tmp/MI10-10-200-2023 --num_users=10 --frac=1 --local_bs=1 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > knowD3.out 2>&1 &
+nohup python FedKNOW/main_WEIT.py --alg=WEIT --dataset=miniimagenet --net=ViT-B/16 --root_dir=/root/autodl-tmp/MI10-10-200-2023 --num_users=10 --frac=1 --local_bs=40 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > weitD2.out 2>&1 &
+
+

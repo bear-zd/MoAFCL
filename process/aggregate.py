@@ -71,10 +71,10 @@ def fetch(clip_model: ClipModelMA, dataloader, client:Client,device, **kwargs):
     return most_index[0]
     
 def communicate(clip_model: ClipModelMA, clients: List[Client], task, device):
-    # cluster_data = cluster(clients, clip_model.n_adapters)
-    cluster_data = [[] for _ in range(clip_model.n_adapters)]
-    for client in range(len(clients)):
-        cluster_data[clients[client].assign].append(client)
+    cluster_data = cluster(clients, clip_model.n_adapters)
+    # cluster_data = [[] for _ in range(clip_model.n_adapters)]
+    # for client in range(len(clients)):
+    #     cluster_data[clients[client].assign].append(client)
     print(cluster_data)
     for index, cluster_clients in enumerate(cluster_data):
         global_adapters = clip_model.MoE.adapters[index].to(device)  # FedAvg for every server

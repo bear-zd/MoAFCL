@@ -72,14 +72,7 @@ def train_client(clip_model : ClipModelMA, client: Client, dataloader, device, a
     client.temp_hook.remove()
     client_domain_feature = torch.tensor(client.preprocess(), dtype=torch.float)
     # print(client_domain_feature.shape) # 1000(total number) * 768(feature num)
-    list_image_domain_features = list(DataLoader(TensorDataset(client_domain_feature),batch_size=100, shuffle=False))
-    # domain_feature = torch.cat([client.adapter(image_feature[0].to(device)) for image_feature in image_features])
-    # print(domain_feature.shape) # 1000(total number) * 4096(feature512* numembbed8)
-    # dataset = TensorDataset(domain_feature)
-    # list_domain_dataloader = list(DataLoader(dataset=dataset, batch_size=100, shuffle=False))
-    # mean_domain_features = [feature[0].mean(dim=0, keepdim=True) for feature in list_domain_dataloader]
-    # _mean_domain_features = [feature.repeat_interleave(len(clip_model.labels), dim=0) for feature in mean_domain_features]
-    # text_features = [clip_model._get_text_features(feature.half()) for feature in _mean_domain_features]
+    list_image_domain_features = list(DataLoader(TensorDataset(client_domain_feature), batch_size=100, shuffle=False))
     for index, batch in enumerate(dataloader):
         image, _, label = batch
         label = label.to(device)
@@ -93,9 +86,6 @@ def train_client(clip_model : ClipModelMA, client: Client, dataloader, device, a
         
         
         image_features = clip_model.model.encode_image(image).float()
-        # image_features_att = image_adapter(image_features)
-        # image_features = torch.mul(image_features_att, image_features)
-        # text_features = clip_model.model.encode_text(text).float()
 
         image_features = image_features / image_features.norm(dim=1, keepdim=True)
         text_features = text_features / text_features.norm(dim=1, keepdim=True)

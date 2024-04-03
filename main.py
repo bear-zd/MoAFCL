@@ -34,7 +34,6 @@ def init():
 
 def main():
     args = init()
-    print(args.rand, type(args.rand))
     logging.info("Argument init successful!")
     server_model: ClipModelMA = ClipModelMA(args.net, n_adapters=args.n_adapters, device=args.device)  # load the server data
     clients_data  = [copy.deepcopy(Client(args.net,args.device)) for i in range(args.n_clients)] # load the client data

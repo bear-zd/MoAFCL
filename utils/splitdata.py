@@ -157,15 +157,72 @@ def final_splitdata(indir:str,outdir:str, sample_strategy:strategy=None) :
                 shutil.copy(path, newpath)
 
 
-        
+
+def organize_cifar100(base_dir, group_size=20):
+    train_dir = os.path.join(base_dir, 'train')
+    test_dir = os.path.join(base_dir, 'test')
+    classes = sorted(os.listdir(train_dir)) 
+
+    for i in range(0, len(classes), group_size):
+        group_classes = classes[i:i + group_size]
+        group_folder_name = f'{int(i//group_size)}groups'
+        group_folder_path = os.path.join(base_dir, group_folder_name)
+
+        os.makedirs(group_folder_path, exist_ok=True)
+
+        for cls in group_classes:
+            train_class_path = os.path.join(train_dir, cls)
+            test_class_path = os.path.join(test_dir, cls)
+            shutil.copytree(train_class_path, os.path.join(group_folder_path, cls), dirs_exist_ok=True)
+            shutil.copytree(test_class_path, os.path.join(group_folder_path, cls), dirs_exist_ok=True)
+
+
+def parse_clsloc_map(file_path):
+    with open(file_path, 'r') as file:
+        cls_map = {line.split()[0]: line.split()[2] for line in file}
+    return cls_map
+
+def organize_miniimagenet(base_dir, group_size=20):
+    clsloc_map_path = os.path.join(base_dir, 'map_clsloc.txt')
+    cls_map = parse_clsloc_map(clsloc_map_path)
+
+    train_dir = os.path.join(base_dir, 'train')
+    test_dir = os.path.join(base_dir, 'test')
+    classes = sorted(os.listdir(train_dir))  # 获取所有类别名称
+
+    for i in range(0, len(classes), group_size):
+        group_classes = classes[i:i + group_size]
+        group_folder_name = f'{int(i//group_size)}groups'
+        group_folder_path = os.path.join(base_dir, group_folder_name)
+
+        os.makedirs(group_folder_path, exist_ok=True)
+
+        for cls in group_classes:
+            if cls in cls_map:
+                new_cls_name = cls_map[cls]
+                new_cls_path = os.path.join(group_folder_path, new_cls_name)
+                os.makedirs(new_cls_path, exist_ok=True)
+
+                for dataset_type in [train_dir, test_dir]:
+                    old_cls_path = os.path.join(dataset_type, cls)
+                    if os.path.exists(old_cls_path):
+                        for file in os.listdir(old_cls_path):
+                            shutil.copy2(os.path.join(old_cls_path, file), new_cls_path)
+
+# 使用示例
+base_directory = '/root/autodl-tmp/miniimagenet'  # 替换为您的 MiniImageNet 数据集的路径
+organize_miniimagenet(base_directory, group_size=20)
 
 
 
 if __name__ == "__main__":
-    INDIR = "xx/data/Adaptiope"
-    OUTDIR = 'xx/data/AD10-10-1000-2023'
-    sample_strategy = single_strategy(os.listdir(INDIR), 10, 10, 1000,seq=True)
+    INDIR = "/root/autodl-tmp/cifar10020G"
+    OUTDIR = '/root/autodl-tmp/CI10-10-200-2023'
+    sample_strategy = single_strategy(os.listdir(INDIR), 10, 10, 200,seq=True)
     final_splitdata(INDIR, OUTDIR, sample_strategy)
-
+    # base_directory = '/root/autodl-tmp/cifar100'  # 替换为您的 CIFAR-100 数据集的路径
+    # organize_cifar100(base_directory, group_size=10)
+    # base_directory = '/root/autodl-tmp/miniimagenet'  
+    # organize_miniimagenet(base_directory, group_size=20)
 
     

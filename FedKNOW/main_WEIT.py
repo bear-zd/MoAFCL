@@ -34,16 +34,16 @@ def img_param_init(args):
     elif dataset == 'officehome':
         domains = ['Art', 'Clipart', 'Product', 'Real World']
         args.numclasses = 65
-    elif dataset == 'domainnet':
-        domains = ['clipart','infograph','painting','quickdraw','real','sketch']
-        args.numclasses = 345
     elif dataset == 'domainnetsub':
         domains = ['clipart','infograph','painting','quickdraw','real','sketch']
         args.numclasses = 100
     elif dataset == 'adaptiope':
         domains = ['synthetic', 'real_life', 'product_images']
         args.numclasses = 123
-    else:
+    elif dataset in ['cifar100', 'miniimagenet']:
+        domains = ['0groups', '1groups', '2groups', '3groups', '4groups']
+        args.numclasses = 100
+    else :
         raise BaseException(f"{dataset} dataset not defined!")
     args.wd = 1e-4
     args.lambda_l1 = 1e-3
@@ -146,7 +146,7 @@ if __name__ == '__main__':
             glob_fisher = None
             start_in = time.time()
             
-            #  tr_dataloaders = DataLoader(DatasetSplit(dataset_train[task],dict_users_train[idx][:args.m_ft]),batch_size=args.local_bs, shuffle=True)
+
             train_dataloaders, test_dataloaders, _ = dataloader.get_dataloader(task)
             w_local = []
             appr:Appr = apprs[idx]

@@ -38,14 +38,9 @@ class ImageTextData(object):
                 osp.join(client_data_path, os.listdir(client_data_path)[0]),
                 transform=self._TRANSFORM,
             )
-        
-
         self.data = data
-        
         self.labels = sorted(data.classes)
         
-        
-
         if prompt:
             self.labels = [prompt + " " + x for x in self.labels]
 
@@ -87,7 +82,6 @@ class DomainDataset:
         train_datasets, test_datasets = [], []
         train_dataloaders, test_dataloaders = [], []
         
-        
         for _, client_name in enumerate(sorted(os.listdir(self.root_dir))):
             if client_name == 'test':
                 for domain in os.listdir(osp.join(self.root_dir, client_name)):
@@ -118,6 +112,8 @@ class DomainDataset:
     def set_labels():
         raise NotImplementedError
     
+class ClassDataset(DomainDataset):
+    pass
 class DoaminNet(DomainDataset): 
     def __init__(self, args, preprocess) -> None:
         super().__init__(args, preprocess)
@@ -152,8 +148,6 @@ class Officehome(DomainDataset):
         self.labels = sorted(['Alarm_Clock', 'Chair', 'File_Cabinet', 'Knives', 'Pan', 'Scissors', 'ToothBrush', 'Backpack', 'Clipboards', 'Flipflops', 'Lamp_Shade', 'Paper_Clip', 'Screwdriver', 'Toys', 'Batteries', 'Computer', 'Flowers', 'Laptop', 'Pen', 'Shelf', 'Trash_Can', 'Bed', 'Couch', 'Folder', 'Marker', 'Pencil', 'Sink', 'TV', 'Bike', 'Curtains', 'Fork', 'Monitor', 'Postit_Notes', 'Sneakers', 'Webcam', 'Bottle', 'Desk_Lamp', 'Glasses', 'Mop', 'Printer', 'Soda', 'Bucket', 'Drill', 'Hammer', 'Mouse', 'Push_Pin', 'Speaker', 'Calculator', 'Eraser', 'Helmet', 'Mug', 'Radio', 'Spoon', 'Calendar', 'Exit_Sign', 'Kettle', 'Notebook', 'Refrigerator', 'Table', 'Candles', 'Fan', 'Keyboard', 'Oven', 'Ruler', 'Telephone'])
         
         
-
-
 class PACS(DomainDataset):
     def __init__(self, args, model):
         super().__init__(args, model)
@@ -161,7 +155,21 @@ class PACS(DomainDataset):
     def get_dataloader(self, client):
         pass
 
+class Cifar100(ClassDataset):
+    def __init__(self, args, preprocess) -> None:
+        self.frac = 1
+        super().__init__(args, preprocess)
+    def set_labels(self):
+        self.labels = ['apple', 'aquarium_fish', 'baby', 'bear', 'beaver', 'bed', 'bee', 'beetle', 'bicycle', 'bottle', 'bowl', 'boy', 'bridge', 'bus', 'butterfly', 'camel', 'can', 'castle', 'caterpillar', 'cattle', 'chair', 'chimpanzee', 'clock', 'cloud', 'cockroach', 'couch', 'crab', 'crocodile', 'cup', 'dinosaur', 'dolphin', 'elephant', 'flatfish', 'forest', 'fox', 'girl', 'hamster', 'house', 'kangaroo', 'keyboard', 'lamp', 'lawn_mower', 'leopard', 'lion', 'lizard', 'lobster', 'man', 'maple_tree', 'motorcycle', 'mountain', 'mouse', 'mushroom', 'oak_tree', 'orange', 'orchid', 'otter', 'palm_tree', 'pear', 'pickup_truck', 'pine_tree', 'plain', 'plate', 'poppy', 'porcupine', 'possum', 'rabbit', 'raccoon', 'ray', 'road', 'rocket', 'rose', 'sea', 'seal', 'shark', 'shrew', 'skunk', 'skyscraper', 'snail', 'snake', 'spider', 'squirrel', 'streetcar', 'sunflower', 'sweet_pepper', 'table', 'tank', 'telephone', 'television', 'tiger', 'tractor', 'train', 'trout', 'tulip', 'turtle', 'wardrobe', 'whale', 'willow_tree', 'wolf', 'woman', 'worm']
+
+class Miniimagenet(ClassDataset):
+    def __init__(self, args, preprocess) -> None:
+        self.frac = 1
+        super().__init__(args, preprocess)
+    def set_labels(self):
+        self.labels = ['African_hunting_dog', 'Arctic_fox', 'French_bulldog', 'Gordon_setter', 'Ibizan_hound', 'Newfoundland', 'Saluki', 'Tibetan_mastiff', 'Walker_hound', 'aircraft_carrier', 'ant', 'ashcan', 'barrel', 'beer_bottle', 'black-footed_ferret', 'bolete', 'bookshop', 'boxer', 'cannon', 'carousel', 'carton', 'catamaran', 'chime', 'cliff', 'clog', 'cocktail_shaker', 'combination_lock', 'consomme', 'coral_reef', 'crate', 'cuirass', 'dalmatian', 'dishrag', 'dome', 'dugong', 'ear', 'electric_guitar', 'file', 'fire_screen', 'frying_pan', 'garbage_truck', 'golden_retriever', 'goose', 'green_mamba', 'hair_slide', 'harvestman', 'holster', 'horizontal_bar', 'hotdog', 'hourglass', 'house_finch', 'iPod', 'jellyfish', 'king_crab', 'komondor', 'ladybug', 'lion', 'lipstick', 'malamute', 'meerkat', 'miniature_poodle', 'miniskirt', 'missile', 'mixing_bowl', 'nematode', 'oboe', 'orange', 'organ', 'parallel_bars', 'pencil_box', 'photocopier', 'poncho', 'prayer_rug', 'reel', 'rhinoceros_beetle', 'robin', 'rock_beauty', 'school_bus', 'scoreboard', 'slot', 'snorkel', 'solar_dish', 'spider_web', 'stage', 'street_sign', 'tank', 'theater_curtain', 'three-toed_sloth', 'tile_roof', 'tobacco_shop', 'toucan', 'triceratops', 'trifle', 'unicycle', 'upright', 'vase', 'white_wolf', 'wok', 'worm_fence', 'yawl']
+
 
 def get_data(dataset) -> DomainDataset:
-    datalist = {"officehome": Officehome, "domainnet":DoaminNet, "domainnetsub":DoaminNetSub, "adaptiope":Adaptiope}
+    datalist = {"officehome": Officehome, "domainnet":DoaminNet, "domainnetsub":DoaminNetSub, "adaptiope":Adaptiope, "cifar100":Cifar100, "miniimagenet":Miniimagenet}
     return datalist[dataset]

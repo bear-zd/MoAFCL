@@ -18,6 +18,9 @@ def img_param_init(args):
     elif dataset == 'adaptiope':
         domains = ['synthetic', 'real_life', 'product_images']
         args.numclasses = 123
+    elif dataset in ['cifar100', 'miniimagenet']:
+        domains = ['0groups', '1groups', '2groups', '3groups', '4groups']
+        args.numclasses = 100
     else :
         logging.ERROR(f"{dataset} dataset not defined!")
         raise BaseException(f"{dataset} dataset not defined!")
