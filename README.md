@@ -8,7 +8,7 @@ https://github.com/microsoft/PersonalizedFL/tree/main/fedclip FedCLIP
 ## install
 
 ```bash
-pip install ftfy regex tqdm
+pip install ftfy regex tqdm quadprog pandas
 pip install git+https://github.com/openai/CLIP.git
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 ```

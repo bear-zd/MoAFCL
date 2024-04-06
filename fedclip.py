@@ -29,6 +29,7 @@ def totrain(model):
 
 
 def train(args, model, data_loader, optimizer, device):
+    print("????")
     totrain(model)
 
     loss_img = nn.CrossEntropyLoss()

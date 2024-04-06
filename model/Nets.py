@@ -17,7 +17,7 @@ import json
 import numpy as np
 
 # from models.layer import DecomposedConv,DecomposedLinear
-from models.layer import DecomposedLinear
+from model.layer import DecomposedLinear
 
 ADAPTER_PARAMETER = {"ViT-B/32":{"image_feature":512, "hidden_size":1024, "output_feature":512, "extract_feature":768},
                     "ViT-B/16":{"image_feature":512, "hidden_size":1024, "output_feature":512, "extract_feature":768},

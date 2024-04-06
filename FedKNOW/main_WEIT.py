@@ -1,7 +1,9 @@
 import os
 import sys
-base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(base_path)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
 import copy
 import itertools
 import numpy as np
@@ -11,11 +13,11 @@ from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 from utils.options import args_parser
 
-from models.test import  test_img_local_all_WEIT
+from model.test import  test_img_local_all_WEIT
 from single.ContinualLearningMethod.WEIT import Appr,LongLifeTrain
-from models.Nets import  WeITAdapter
+from model.Nets import  WeITAdapter
 from utils.dataload import DomainDataset, get_data
-from models.clip import FedWeITClip
+from model.clip import FedWeITClip
 import random
 import time
 def set_random_seed(seed=2023):

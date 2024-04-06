@@ -179,17 +179,20 @@ class Appr(object):
         self.tr_dataloader = tr_dataloader
     def _get_optimizer(self, model=None,lr=None):
         if lr is None: lr = self.lr
+
         optimizer =None
         if model == None:
             if "SGD" in self.optim_type:
                 optimizer = torch.optim.SGD(self.model.parameters(), lr=lr, weight_decay=self.lr_decay)
             else:
-                optimizer = torch.optim.Adam(self.model.parameters(), lr=lr,weight_decay=self.lr_decay)
+                optimizer = torch.optim.Adam(self.model.parameters(), lr=lr,weight_decay=self.lr_decay, betas=(
+                    0.9, 0.98), eps=1e-6)
         else:
             if "SGD" in self.optim_type:
                 optimizer = torch.optim.SGD(self.packmodel.parameters(), lr=lr, weight_decay=self.lr_decay)
             else:
-                optimizer = torch.optim.Adam(self.packmodel.parameters(), lr=lr,weight_decay=self.lr_decay)
+                optimizer = torch.optim.Adam(self.packmodel.parameters(), lr=lr,weight_decay=self.lr_decay, betas=(
+                    0.9, 0.98), eps=1e-6)
         return optimizer
 
     def train(self, clip_model, t):
@@ -271,7 +274,7 @@ class Appr(object):
             self.pack.on_after_backward(self.packmodel.feature_net,t)
             self.pack_optimizer.step()
 
-    def train_epoch_head(self, t, epoch,oldpackmodel, clip_model):
+    def train_epoch_head(self, t, epoch, oldpackmodel, clip_model):
         self.model.train()
         clip_model.model.eval()
 
@@ -308,6 +311,7 @@ class Appr(object):
             self.model.zero_grad()
             clip_model.model.zero_grad()
             memoryloss = MultiClassCrossEntropy(pre_logits_per_image, cur_logits_per_image)
+            
             memoryloss.backward()
             self.optimizer.step()
 
@@ -333,7 +337,7 @@ class Appr(object):
             loss.backward()
             self.optimizer.step()
         
-    def train_epoch_rep(self, t, epoch,oldpackmodel, clip_model):
+    def train_epoch_rep(self, t, epoch, oldpackmodel, clip_model):
         self.model.train()
         clip_model.model.train()
         self.packmodel.train()
@@ -376,7 +380,7 @@ class Appr(object):
                 pre_logits_per_image = pre_logit_scale * pre_image_features @ pre_text_features.t()
                 cur_logits_per_image = pre_logit_scale * pre_image_features @ cur_text_features.t()
                 pre_loss =MultiClassCrossEntropy(pre_logits_per_image, cur_logits_per_image)
-
+                
                 pre_loss.backward()
                 store_grad(self.model.feature_net.parameters, grads, self.grad_dims, 0)
                 if t >= self.select_grad_num:
@@ -412,14 +416,16 @@ class Appr(object):
                     pre_logits_per_image = pre_logit_scale * pre_image_features @ pre_text_features.t()
                     
                     memoryloss = MultiClassCrossEntropy(pre_logits_per_image, temp_logits_per_image)
+                    
                     memoryloss.backward()
                     store_grad(self.model.feature_net.parameters, grads, self.grad_dims, i+1)
                     del temppackmodel
-                ## 求出每个分类器算出来的梯度
+
 
             image_features = clip_model.model.encode_image(images).half()
 
             domain_feature = self.model(list_image_domain_features[index][0].to(self.device))
+            # print(domain_feature.shape)
             mean_domain_feature = domain_feature.mean(dim=0, keepdim=True)
             _mean_domain_features = mean_domain_feature.repeat_interleave(len(clip_model.labels), dim=0)
             text_features = clip_model._get_text_features(_mean_domain_features.half())
@@ -432,7 +438,7 @@ class Appr(object):
 
             loss = F.cross_entropy(logits_per_image, labels)
             ## 根据这个损失计算梯度，变换此梯度
-
+            # print(loss.item())
             # Backward
             self.model.zero_grad()
             clip_model.model.zero_grad()

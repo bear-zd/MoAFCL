@@ -209,20 +209,41 @@ def organize_miniimagenet(base_dir, group_size=20):
                         for file in os.listdir(old_cls_path):
                             shutil.copy2(os.path.join(old_cls_path, file), new_cls_path)
 
-# 使用示例
-base_directory = '/root/autodl-tmp/miniimagenet'  # 替换为您的 MiniImageNet 数据集的路径
-organize_miniimagenet(base_directory, group_size=20)
+def fullfil(root_folders):
+    all_classes = ['apple', 'aquarium_fish', 'baby', 'bear', 'beaver', 'bed', 'bee', 'beetle', 'bicycle', 'bottle', 'bowl', 'boy', 'bridge', 'bus', 'butterfly', 'camel', 'can', 'castle', 'caterpillar', 'cattle', 'chair', 'chimpanzee', 'clock', 'cloud', 'cockroach', 'couch', 'crab', 'crocodile', 'cup', 'dinosaur', 'dolphin', 'elephant', 'flatfish', 'forest', 'fox', 'girl', 'hamster', 'house', 'kangaroo', 'keyboard', 'lamp', 'lawn_mower', 'leopard', 'lion', 'lizard', 'lobster', 'man', 'maple_tree', 'motorcycle', 'mountain', 'mouse', 'mushroom', 'oak_tree', 'orange', 'orchid', 'otter', 'palm_tree', 'pear', 'pickup_truck', 'pine_tree', 'plain', 'plate', 'poppy', 'porcupine', 'possum', 'rabbit', 'raccoon', 'ray', 'road', 'rocket', 'rose', 'sea', 'seal', 'shark', 'shrew', 'skunk', 'skyscraper', 'snail', 'snake', 'spider', 'squirrel', 'streetcar', 'sunflower', 'sweet_pepper', 'table', 'tank', 'telephone', 'television', 'tiger', 'tractor', 'train', 'trout', 'tulip', 'turtle', 'wardrobe', 'whale', 'willow_tree', 'wolf', 'woman', 'worm']
+    clients = os.listdir(root_folders)
+    print(clients)
+    for i in clients:
+        if "client" in i :
+            ci = os.path.join(root_folders, i)
+            c = os.listdir(ci)
+            for d in c:
+                cd = os.path.join(ci, d)
+                cf = os.listdir(cd)
+                for j in all_classes:
+                    os.makedirs(os.path.join(cd, cf[0], j), exist_ok=True)
+        else:
+            ti = os.path.join(root_folders, i)
+            tc = os.listdir(ti)
+            for domain in tc:
+                for j in all_classes:
+                    os.makedirs(os.path.join(ti, domain, j), exist_ok=True)
+
+
+            
+
+
 
 
 
 if __name__ == "__main__":
-    INDIR = "/root/autodl-tmp/cifar10020G"
-    OUTDIR = '/root/autodl-tmp/CI10-10-200-2023'
-    sample_strategy = single_strategy(os.listdir(INDIR), 10, 10, 200,seq=True)
-    final_splitdata(INDIR, OUTDIR, sample_strategy)
+    # INDIR = "/root/autodl-tmp/cifar10020G"
+    # OUTDIR = '/root/autodl-tmp/CI10-10-200-2023'
+    # sample_strategy = single_strategy(os.listdir(INDIR), 10, 10, 200,seq=True)
+    # final_splitdata(INDIR, OUTDIR, sample_strategy)
     # base_directory = '/root/autodl-tmp/cifar100'  # 替换为您的 CIFAR-100 数据集的路径
     # organize_cifar100(base_directory, group_size=10)
     # base_directory = '/root/autodl-tmp/miniimagenet'  
     # organize_miniimagenet(base_directory, group_size=20)
-
-    
+    # fullfil("/root/autodl-tmp/CI10-10-200-2023")
+    pass

@@ -1,6 +1,6 @@
 import sys, time, os
 from typing import OrderedDict
-from models.Nets import WeITAdapter
+from model.Nets import WeITAdapter
 
 import numpy as np
 import torch
