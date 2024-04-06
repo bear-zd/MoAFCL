@@ -6,7 +6,9 @@ from tqdm import tqdm
 from utils import *
 from torch.utils.tensorboard import SummaryWriter
 import quadprog
-sys.path.append('..')
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
 import torch.nn.functional as F
 import torch.nn as nn
 from collections import OrderedDict

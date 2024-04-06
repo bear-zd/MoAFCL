@@ -1,5 +1,9 @@
 import sys
+import os
 sys.path.append(".")
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
 import copy
 import itertools
 import numpy as np
@@ -10,12 +14,12 @@ from torch.utils.tensorboard import SummaryWriter
 from utils.options import args_parser
 
 # from utils.train_utils import get_data, get_model
-from models.Nets import KNOWAdapter
-from models.test import test_img_local_all_KNOW
+from model.Nets import KNOWAdapter
+from model.test import test_img_local_all_KNOW
 from single.ContinualLearningMethod.FedKNOW import Appr,LongLifeTrain
 import time
-from models.Packnet import PackNet
-from models.clip import FedKNOWClip
+from model.Packnet import PackNet
+from model.clip import FedKNOWClip
 from utils.dataload import DomainDataset, get_data
 
 import random

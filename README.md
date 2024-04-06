@@ -17,6 +17,8 @@ Before running the code, do split data first.
 
 > python utils/splitdata.py
 
+If you alse need to do the class-wise continual learning, don't forget do `fillful` function. The detail of the usage have been put in the `utils/splitdata.py` 
+
 ## run
 
 run MoAFCL

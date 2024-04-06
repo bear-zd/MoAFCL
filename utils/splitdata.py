@@ -210,7 +210,13 @@ def organize_miniimagenet(base_dir, group_size=20):
                             shutil.copy2(os.path.join(old_cls_path, file), new_cls_path)
 
 def fullfil(root_folders):
+    '''
+    Because of the continual learning exist unseen classes, you should fullfil the folder with  all classes even without data
+    '''
     all_classes = ['apple', 'aquarium_fish', 'baby', 'bear', 'beaver', 'bed', 'bee', 'beetle', 'bicycle', 'bottle', 'bowl', 'boy', 'bridge', 'bus', 'butterfly', 'camel', 'can', 'castle', 'caterpillar', 'cattle', 'chair', 'chimpanzee', 'clock', 'cloud', 'cockroach', 'couch', 'crab', 'crocodile', 'cup', 'dinosaur', 'dolphin', 'elephant', 'flatfish', 'forest', 'fox', 'girl', 'hamster', 'house', 'kangaroo', 'keyboard', 'lamp', 'lawn_mower', 'leopard', 'lion', 'lizard', 'lobster', 'man', 'maple_tree', 'motorcycle', 'mountain', 'mouse', 'mushroom', 'oak_tree', 'orange', 'orchid', 'otter', 'palm_tree', 'pear', 'pickup_truck', 'pine_tree', 'plain', 'plate', 'poppy', 'porcupine', 'possum', 'rabbit', 'raccoon', 'ray', 'road', 'rocket', 'rose', 'sea', 'seal', 'shark', 'shrew', 'skunk', 'skyscraper', 'snail', 'snake', 'spider', 'squirrel', 'streetcar', 'sunflower', 'sweet_pepper', 'table', 'tank', 'telephone', 'television', 'tiger', 'tractor', 'train', 'trout', 'tulip', 'turtle', 'wardrobe', 'whale', 'willow_tree', 'wolf', 'woman', 'worm']
+    # for cifar100
+    all_classes = sorted(['African_hunting_dog', 'Arctic_fox', 'French_bulldog', 'Gordon_setter', 'Ibizan_hound', 'Newfoundland', 'Saluki', 'Tibetan_mastiff', 'Walker_hound', 'aircraft_carrier', 'ant', 'ashcan', 'barrel', 'beer_bottle', 'black-footed_ferret', 'bolete', 'bookshop', 'boxer', 'cannon', 'carousel', 'carton', 'catamaran', 'chime', 'cliff', 'clog', 'cocktail_shaker', 'combination_lock', 'consomme', 'coral_reef', 'crate', 'cuirass', 'dalmatian', 'dishrag', 'dome', 'dugong', 'ear', 'electric_guitar', 'file', 'fire_screen', 'frying_pan', 'garbage_truck', 'golden_retriever', 'goose', 'green_mamba', 'hair_slide', 'harvestman', 'holster', 'horizontal_bar', 'hotdog', 'hourglass', 'house_finch', 'iPod', 'jellyfish', 'king_crab', 'komondor', 'ladybug', 'lion', 'lipstick', 'malamute', 'meerkat', 'miniature_poodle', 'miniskirt', 'missile', 'mixing_bowl', 'nematode', 'oboe', 'orange', 'organ', 'parallel_bars', 'pencil_box', 'photocopier', 'poncho', 'prayer_rug', 'reel', 'rhinoceros_beetle', 'robin', 'rock_beauty', 'school_bus', 'scoreboard', 'slot', 'snorkel', 'solar_dish', 'spider_web', 'stage', 'street_sign', 'tank', 'theater_curtain', 'three-toed_sloth', 'tile_roof', 'tobacco_shop', 'toucan', 'triceratops', 'trifle', 'unicycle', 'upright', 'vase', 'white_wolf', 'wok', 'worm_fence', 'yawl'])
+    # for miniimagenet
     clients = os.listdir(root_folders)
     print(clients)
     for i in clients:
@@ -245,5 +251,5 @@ if __name__ == "__main__":
     # organize_cifar100(base_directory, group_size=10)
     # base_directory = '/root/autodl-tmp/miniimagenet'  
     # organize_miniimagenet(base_directory, group_size=20)
-    # fullfil("/root/autodl-tmp/CI10-10-200-2023")
-    pass
+    fullfil("/root/autodl-tmp/MI10-10-200-2023")
+    # pass

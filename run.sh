@@ -102,11 +102,10 @@ python main.py --dataset miniimagenet --root_dir  /root/autodl-tmp/MI10-10-200-2
 
 
 # for classwise FCL
-nohup python -u main.py --dataset officehome --root_dir  /root/autodl-tmp/OF10-10-1000-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "OurOFtrail.out" 2>&1 &
-nohup python -u FedKNOW/main_FedKNOW.py --alg=FedKNOW --dataset=officehome --net=ViT-B/16 --root_dir=/root/autodl-tmp/OF10-10-1000-2023 --num_users=10 --frac=1 --local_bs=100 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > knowOFtrail.out 2>&1 &
-nohup python FedKNOW/main_WEIT.py --alg=WEIT --dataset=officehome --net=ViT-B/16 --root_dir=/root/autodl-tmp/OF10-10-1000-2023 --num_users=10 --frac=1 --local_bs=100 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > weitOFtrail.out 2>&1 &
-nohup python -u fedclip.py --dataset cifar100 --root_dir  ~/autodl-tmp/CI10-10-200-2023 --batch 100  --device cuda:0 --wk_iters 20 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > FedCLIPCifar100.out 2>&1 &
+nohup python main_WEIT.py --alg=WEIT --dataset=cifar100 --net=ViT-B/16 --root_dir=/root/autodl-tmp/CI10-10-200-2023 --num_users=10 --frac=1 --local_bs=100 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=40  --gpu=0 --batch 100 > "weitCI.out" 2>&1 &
 
+nohup python main_WEIT.py --alg=WEIT --dataset=miniimagenet --net=ViT-B/16 --root_dir=/root/autodl-tmp/MI10-10-200-2023 --num_users=10 --frac=1 --local_bs=100 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=40  --gpu=0 --batch 100 > "weitMI.out" 2>&1 &
 
-nohup python main.py --dataset cifar100 --root_dir  /root/autodl-tmp/CI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10 --rand 0 --net "ViT-B/16" > OurCi100.out 2>&1 &
-nohup python FedKNOW/main_WEIT.py --alg=WEIT --dataset=cifar100 --net=ViT-B/16 --root_dir=/root/autodl-tmp/CI10-10-200-2023 --num_users=10 --frac=1 --local_bs=100 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=10  --gpu=0 --batch 100 > weitCi100.out 2>&1 &
+nohup python main_FedKNOW.py --alg=FedKNOW --dataset=cifar100 --net=ViT-B/16 --root_dir=/root/autodl-tmp/CI10-10-200-2023 --num_users=10 --frac=1 --local_bs=100 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=40  --gpu=0 --batch 100 > "KNOWCI.out" 2>&1 &
+
+nohup python main_FedKNOW.py --alg=FedKNOW --dataset=miniimagenet --net=ViT-B/16 --root_dir=/root/autodl-tmp/MI10-10-200-2023 --num_users=10 --frac=1 --local_bs=100 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=40  --gpu=0 --batch 100 > "KNOWMI.out" 2>&1 &
