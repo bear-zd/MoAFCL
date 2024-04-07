@@ -98,7 +98,7 @@ nohup python fedclip.py --dataset officehome --root_dir  ~/autodl-tmp/OF10-10-10
 nohup python main.py --dataset officehome --root_dir  ~/autodl-tmp/OF10-10-1000-2023 --batch 100  --n_adapters=5 --extract_layer 3  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10 --rand 0 --net "ViT-B/32" > ViTB32.out 2>&1 &
 
 
-python main.py --dataset miniimagenet --root_dir  /root/autodl-tmp/MI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 5  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10 --rand 0 --net "ViT-B/16"
+nohup python main.py --dataset cifar100 --root_dir  /root/autodl-tmp/CI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10 --rand 0 --net "ViT-B/16" > "11layer5round.out" 2>&1 &
 
 
 # for classwise FCL
@@ -106,6 +106,13 @@ nohup python main_WEIT.py --alg=WEIT --dataset=cifar100 --net=ViT-B/16 --root_di
 
 nohup python main_WEIT.py --alg=WEIT --dataset=miniimagenet --net=ViT-B/16 --root_dir=/root/autodl-tmp/MI10-10-200-2023 --num_users=10 --frac=1 --local_bs=100 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=40  --gpu=0 --batch 100 > "weitMI.out" 2>&1 &
 
-nohup python main_FedKNOW.py --alg=FedKNOW --dataset=cifar100 --net=ViT-B/16 --root_dir=/root/autodl-tmp/CI10-10-200-2023 --num_users=10 --frac=1 --local_bs=100 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=40  --gpu=0 --batch 100 > "KNOWCI.out" 2>&1 &
+nohup python -u main_FedKNOW.py --alg=FedKNOW --dataset=cifar100 --net=ViT-B/16 --root_dir=/root/autodl-tmp/CI10-10-200-2023 --num_users=10 --frac=1 --local_bs=100 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=40  --gpu=0 --batch 100 > "KNOWCI.out" 2>&1 &
 
-nohup python main_FedKNOW.py --alg=FedKNOW --dataset=miniimagenet --net=ViT-B/16 --root_dir=/root/autodl-tmp/MI10-10-200-2023 --num_users=10 --frac=1 --local_bs=100 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=40  --gpu=0 --batch 100 > "KNOWMI.out" 2>&1 &
+nohup python -u main_FedKNOW.py --alg=FedKNOW --dataset=miniimagenet --net=ViT-B/16 --root_dir=/root/autodl-tmp/MI10-10-200-2023 --num_users=10 --frac=1 --local_bs=100 --optim=Adam --lr=0.001 --lr_decay=1e-4 --task=10 --epoch=10 --round=1  --local_ep=40  --gpu=0 --batch 100 > "KNOWMI.out" 2>&1 &
+
+nohup python fedclip.py --dataset cifar100 --root_dir  /root/autodl-tmp/CI10-10-200-2023 --batch 100   --wk_iters 30 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > FedCLIPCI.out 2>&1 &
+
+nohup python fedclip.py --dataset miniimagenet --root_dir  /root/autodl-tmp/MI10-10-200-2023  --batch 100   --wk_iters 30 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > FedCLIPMI.out 2>&1 &
+
+nohup python main.py --dataset cifar100 --root_dir  /root/autodl-tmp/CI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 30 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "11layer6round.out" 2>&1 &
+nohup python main.py --dataset cifar100 --root_dir  /root/autodl-tmp/CI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 30 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "11layer7round.out" 2>&1 &

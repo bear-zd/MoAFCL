@@ -29,7 +29,6 @@ def totrain(model):
 
 
 def train(args, model, data_loader, optimizer, device):
-    print("????")
     totrain(model)
 
     loss_img = nn.CrossEntropyLoss()
@@ -109,14 +108,12 @@ def communication(args, server_model, models, client_weights):
                 temp = torch.zeros_like(server_model.img_adap.state_dict()[
                                         key], dtype=torch.float32)
                 for client_idx in range(client_num):
-                    if client_idx not in args.test_envs:
-                        temp += client_weights[client_idx] * \
-                            models[client_idx].img_adap.state_dict()[key]
+                    temp += client_weights[client_idx] * \
+                        models[client_idx].img_adap.state_dict()[key]
                 server_model.img_adap.state_dict()[key].data.copy_(temp)
                 for client_idx in range(client_num):
-                    if client_idx not in args.test_envs:
-                        models[client_idx].img_adap.state_dict()[key].data.copy_(
-                            server_model.img_adap.state_dict()[key])
+                    models[client_idx].img_adap.state_dict()[key].data.copy_(
+                        server_model.img_adap.state_dict()[key])
     return server_model, models
 
 
@@ -139,7 +136,6 @@ if __name__ == '__main__':
     parser.add_argument('--n_task', type=int, default=4, help='task number')
     parser.add_argument('--seed', type=int, default=0, help='random seed')
     parser.add_argument('--n_clients', type=int, default=10)
-    parser.add_argument('--test_envs', type=int, nargs='+', default=[])
     parser.add_argument('--beta1', type=float, default=0.9)
     parser.add_argument('--beta2', type=float, default=0.98)
     parser.add_argument('--eps', type=float, default=1e-6)
@@ -147,8 +143,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     args.random_state = np.random.RandomState(1)
     set_random_seed(args.seed)
-    # args.n_clients = 4
-    # device = args.device
     args = img_param_init(args)
     os.makedirs('../data/', exist_ok=True)
 
@@ -160,9 +154,8 @@ if __name__ == '__main__':
 
     server_model.initdgatal(test_loaders[0])
 
-    client_num = len(test_loaders)
-    sclient_num = client_num-len(args.test_envs)
-    client_weights = [1/sclient_num for i in range(client_num)]
+    client_num = args.n_clients
+    client_weights = [1/client_num for i in range(client_num)]
     models = [copy.deepcopy(server_model)for idx in range(client_num)]
     for i in range(client_num):
         models[i].labels = labels
@@ -171,45 +164,34 @@ if __name__ == '__main__':
     best_changed = False
 
     best_acc = [0. for j in range(client_num)]
-    finalrecord = ''
-    logrecord = ''
-
     for a_iter in range(args.n_task):
         optimizers = [optim.Adam(params=[{'params': models[idx].img_adap.parameters()}], lr=args.lr, betas=(
             args.beta1, args.beta2), eps=args.eps, weight_decay=args.weight_decay) for idx in range(client_num)]
-        train_loaders, test_loaders, labels = get_data(args.dataset)(args, server_model.preprocess).get_dataloader(a_iter)
-        for wi in range(args.wk_iters):
-            print("============ Train epoch {} task {} ============".format(wi + a_iter * args.wk_iters,a_iter))
-            logrecord += 'Train epoch:%d\n' % (wi + a_iter * args.wk_iters)
-            for client_idx, model in enumerate(models):
-                if client_idx in args.test_envs:
-                    pass
-                else:
-                    train(
-                        args, model, train_loaders[client_idx], optimizers[client_idx], device)
+        train_loaders, test_loaders, labels = get_data(args.dataset)(args, server_model.preprocess).get_dataloader(a_iter)    
+        for client_idx, model in enumerate(models):
+            print(f"=========  Trian client {client_idx} ===========")
+            for wi in range(args.wk_iters):
+                # print("    == Train iters {} task {} ============".format(wi + a_iter * args.wk_iters,a_iter))
+                train(
+                    args, model, train_loaders[client_idx], optimizers[client_idx], device)
+                if wi%5==0:
+                    train_acc, total = test(args, model, train_loaders[client_idx], device)
+                    print(' Site-{}| Train Acc: {}'.format(client_idx, train_acc/total))
         with torch.no_grad():
             server_model, models = communication(
                 args, server_model, models, client_weights)
 
-            val_acc_list = [0. for j in range(client_num)]
-            for client_idx, model in enumerate(models):
-                if client_idx in args.test_envs:
-                    pass
-                else:
-                    train_acc = test(
-                        args, model, train_loaders[client_idx], device)
-                    print(' Site-{}| Train Acc: {}'.format(
-                        client_idx, train_acc))
-                    logrecord += ' Site-{}| Train Acc: {}\n'.format(
-                        client_idx, train_acc)
+            # val_acc_list = [0. for j in range(client_num)]
+            # do clients test
+            # for client_idx, model in enumerate(models):
+                
+            # for domain_idx in range(len(args.domains)):
+            #     val_acc, total = test(
+            #         args, server_model, test_loaders[domain_idx], device)
+            #     val_acc_list[client_idx] = val_acc
+            #     print(' Site-{}| Val  Acc: {}'.format(
+            #         client_idx, val_acc/ total), flush=True)
 
-                    val_acc = test(
-                        args, model, test_loaders[client_idx], device)
-                    val_acc_list[client_idx] = val_acc
-                    print(' Site-{}| Val  Acc: {}'.format(
-                        client_idx, val_acc), flush=True)
-                    logrecord += ' Site-{}| Val  Acc: {}\n'.format(
-                        client_idx, val_acc)
 
             t, c = 0, 0
             for domain_idx in range(len(test_loaders)):
