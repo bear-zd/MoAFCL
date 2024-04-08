@@ -9,11 +9,10 @@ import numpy as np
 import pandas as pd
 import torch
 from torch import nn
-from torch.utils.tensorboard import SummaryWriter
 from utils.options import args_parser
 
 from model.test import  test_img_local_all_WEIT
-from single.ContinualLearningMethod.WEIT import Appr,LongLifeTrain
+from process.WEIT import Appr,LongLifeTrain
 from model.Nets import  WeITAdapter
 from utils.dataload import DomainDataset, get_data
 from model.clip import FedWeITClip
@@ -66,16 +65,9 @@ if __name__ == '__main__':
     server_model.labels = labels
     server_model.init_prompt()
 
-    # lens = np.ones(args.num_users)
-    # if 'cifar' in args.dataset or args.dataset == 'mnist' or 'miniimagenet' in args.dataset or 'FC100' in args.dataset or 'Corn50' in args.dataset:
-    #     dataset_train, dataset_test, dict_users_train, dict_users_test = get_data(args)
-    #     for idx in dict_users_train.keys():
-    #         np.random.shuffle(dict_users_train[idx])
 
     print(args.alg)
-    write = SummaryWriter('./log/WEIT_' + args.dataset+'_'+'round' + str(args.round) + '_frac' + str(args.frac) + '_model_'+args.net)
     # build model
-    # net_glob = get_model(args)
     net_glob = WeITAdapter(args.net, device=args.device)
     net_glob.train()
     total_num_layers = len(net_glob.state_dict().keys())

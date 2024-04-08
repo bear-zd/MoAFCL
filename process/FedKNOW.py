@@ -4,7 +4,6 @@ import torch
 from copy import deepcopy
 from tqdm import tqdm
 from utils import *
-from torch.utils.tensorboard import SummaryWriter
 import quadprog
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -532,36 +531,3 @@ def LongLifeTrain(args, clip_model, appr: Appr, aggNum, from_kb, idx):
     fisher, acc = appr.train(clip_model, task)
     print('-' * 100)
     return appr.model.state_dict(),fisher,acc,0
-
-def LongLifeTest(args, appr, t, testdatas, aggNum, writer):
-    t = aggNum // args.round
-    r = aggNum % args.round
-    # for u in range(t + 1):
-    #     xtest = testdatas[u][0].to(self.device)
-    #     ytest = (testdatas[u][1] - u * 10).to(self.device)
-    #     test_loss, test_acc = appr.eval(u, xtest, ytest)
-    #     print('>>> Test on task {:2d} : loss={:.3f}, acc={:5.1f}% <<<'.format(u, test_loss,
-    #                                                                           100 * test_acc))
-    #     acc[0, u] = test_acc
-    #     lss[0, u] = test_loss
-    # # Save
-    # mean_acc = np.mean(acc[0, :t+1])
-    # mean_lss = np.mean(lss[0, :t])
-    # print('Average accuracy={:5.1f}%'.format(100 * np.mean(acc[0, :t+1])))
-    # print('Average loss={:5.1f}'.format(np.mean(lss[0, :t+1])))
-    # print('Save at ' + args.output)
-    # if r == args.round - 1:
-    #     writer.add_scalar('task_finish_and _agg', mean_acc, t + 1)
-    # # np.savetxt(args.agg_output + 'aggNum_already_'+str(aggNum)+args.log_name, acc, '%.4f')
-    # return mean_lss, mean_acc
-
-# def main():
-#     # cifar100 = Cifar100Task('../data',batch_size=900,num_clients=5,cur_client=4,task_num=10,isFed=True)
-#     cifar100 = Cifar100Task('../data/cifar-100-python', batch_size=4500, task_num=10, num_clients=5, cur_client=0,
-#                       isFed=True)
-#     TaskDatas = cifar100.getDatas()
-#     net = network.RepTail([3, 32, 32]).to(self.device)
-#
-#
-# if __name__ == "__main__":
-#     main()

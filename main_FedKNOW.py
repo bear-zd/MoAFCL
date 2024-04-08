@@ -10,13 +10,12 @@ import numpy as np
 import pandas as pd
 import torch
 from torch import nn
-from torch.utils.tensorboard import SummaryWriter
 from utils.options import args_parser
 
 # from utils.train_utils import get_data, get_model
 from model.Nets import KNOWAdapter
 from model.test import test_img_local_all_KNOW
-from single.ContinualLearningMethod.FedKNOW import Appr,LongLifeTrain
+from process.FedKNOW import Appr,LongLifeTrain
 import time
 from model.Packnet import PackNet
 from model.clip import FedKNOWClip
@@ -73,7 +72,6 @@ if __name__ == '__main__':
     server_model.init_prompt()
 
     print(args.alg)
-    write = SummaryWriter('./log/FedKNOW_' + args.dataset+'_'+'round' + str(args.round) + '_frac' + str(args.frac) + '_model_'+args.net)
     # build model
     # net_glob = get_model(args)
     net_glob = KNOWAdapter(args.net)
