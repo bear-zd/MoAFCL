@@ -71,7 +71,7 @@ def fetch(clip_model: ClipModelMA, dataloader, client:Client,device, **kwargs):
     return most_index[0]
     
 def communicate(clip_model: ClipModelMA, clients: List[Client], task, device):
-    if task % 7 == 0:
+    if task % 11 == 0:
         cluster_data = cluster(clients, clip_model.n_adapters)
     else:
         cluster_data = [[] for _ in range(clip_model.n_adapters)]

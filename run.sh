@@ -116,3 +116,26 @@ nohup python fedclip.py --dataset miniimagenet --root_dir  /root/autodl-tmp/MI10
 
 nohup python main.py --dataset cifar100 --root_dir  /root/autodl-tmp/CI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 30 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "11layer6round.out" 2>&1 &
 nohup python main.py --dataset cifar100 --root_dir  /root/autodl-tmp/CI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 30 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "11layer7round.out" 2>&1 &
+
+nohup python main.py --dataset miniimagenet --root_dir  /root/autodl-tmp/MI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 3  --device cuda:0 --inner_iter 20 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "3layer5roundMI.out" 2>&1 &
+
+nohup python main.py --dataset miniimagenet --root_dir  /root/autodl-tmp/MI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 20 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "11layer5roundMI.out" 2>&1 &
+
+nohup python main.py --dataset miniimagenet --root_dir  /root/autodl-tmp/MI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 3  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "10iter3layer5roundMI.out" 2>&1 &
+
+nohup python main.py --dataset miniimagenet --root_dir  /root/autodl-tmp/MI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11 --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "10iter11layer5roundMI.out" 2>&1 &
+
+nohup python main.py --dataset miniimagenet --root_dir  /root/autodl-tmp/MI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 3  --device cuda:0 --inner_iter 20 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "3layer11roundMI.out" 2>&1 &
+
+nohup python main.py --dataset miniimagenet --root_dir  /root/autodl-tmp/MI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 20 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "11layer11roundMI.out" 2>&1 &
+
+nohup python main.py --dataset miniimagenet --root_dir  /root/autodl-tmp/MI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 3  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "10iter3layer11roundMI.out" 2>&1 &
+
+nohup python main.py --dataset miniimagenet --root_dir  /root/autodl-tmp/MI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11 --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "10iter11layer11roundMI.out" 2>&1 &
+
+nohup python main.py --dataset cifar100 --root_dir  /root/autodl-tmp/CI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "10iter11layer5roundMI.out" 2>&1 &
+nohup python main.py --dataset cifar100 --root_dir  /root/autodl-tmp/CI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 20 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "20iter11layer5roundMI.out" 2>&1 &
+nohup python main.py --dataset cifar100 --root_dir  /root/autodl-tmp/CI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 30 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "30iter11layer5roundMI.out" 2>&1 &
+nohup python main.py --dataset cifar100 --root_dir  /root/autodl-tmp/CI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 10 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "10iter11layer11roundMI.out" 2>&1 &
+nohup python main.py --dataset cifar100 --root_dir  /root/autodl-tmp/CI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 20 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "20iter11layer11roundMI.out" 2>&1 &
+nohup python main.py --dataset cifar100 --root_dir  /root/autodl-tmp/CI10-10-200-2023 --batch 100  --n_adapters=5 --extract_layer 11  --device cuda:0 --inner_iter 30 --n_task 10 --seed 2023 --n_clients 10  --net "ViT-B/16" > "30iter11layer11roundMI.out" 2>&1 &

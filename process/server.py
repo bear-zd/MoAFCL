@@ -21,7 +21,6 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], task, device):
     clip_model.MoE = clip_model.MoE.to(device)
 
     optimizer = optim.SGD(clip_model.MoE.gating.parameters(), lr=1.5)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [200,400], gamma=0.5)
     clip_model.MoE.train()
     freeze_param(clip_model.MoE.adapters)
     clip_model.MoE.adapters.eval()
@@ -29,21 +28,16 @@ def train_server(clip_model: ClipModelMA, clients: List[Client], task, device):
     
     shape = 768 if "B" in clip_model.model_name else 1024
     temp_data = torch.tensor(np.stack([i.preprocess() for i in clients]).reshape(-1, shape), dtype=torch.float)
-    # temp_label_data = torch.tensor(list(itertools.chain.from_iterable([[i.count_dict]*len(i.preprocess()) for i in clients])), dtype=torch.long)
     temp_label_data = torch.tensor(list(itertools.chain.from_iterable([[i.count_dict]*len(i.preprocess()) for i in clients])), dtype=torch.float)
 
-    # temp_label_data = torch.tensor([[]])
-    # print(temp_data.shape, temp_label_data.shape)
     dataset = TensorDataset(temp_data, temp_label_data)
     dataloader = DataLoader(dataset=dataset, batch_size=100, shuffle=True)
     correct = 0
     all = 0
-    softmax = Softmax(-1)
     logging.info(f"Server start to train MoE !")
     for epoch in range(500):
         for batch in dataloader:
             data, label = batch
-            # print(label)
 
             data, label = data.to(device), label.to(device)
             data = add_laplace_noise(data, device=device)
