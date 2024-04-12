@@ -170,3 +170,5 @@ archivelogs/
 save/
 draw.ipynb
 __pycache__
+*.npy
+*.bak
