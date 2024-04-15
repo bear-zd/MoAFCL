@@ -167,7 +167,7 @@ log/
 .vscode/
 FedKNOW/.vscode
 archivelogs/
-save/
+# save/
 draw.ipynb
 __pycache__
 *.npy
