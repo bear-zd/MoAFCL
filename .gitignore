@@ -168,7 +168,7 @@ log/
 FedKNOW/.vscode
 archivelogs/
 # save/
-draw.ipynb
+# draw.ipynb
 __pycache__
 *.npy
 *.bak
